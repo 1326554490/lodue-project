@@ -9,12 +9,19 @@ const rhythmData = [
   { t: 18, focus: 78, calm: 74 },
 ]
 
-export default function CompanionPanel({ progress, activePara, total, notes, markDifficult, difficultyCount }) {
+const companionLabels = {
+  off: '关闭',
+  weak: '弱',
+  medium: '中',
+  strong: '强',
+}
+
+export default function CompanionPanel({ progress, activePara, total, notes, markDifficult, difficultyCount, companionLevel, setCompanionLevel }) {
   const stage = progress < 35 ? '渐入' : progress < 70 ? '沉浸' : '收束'
 
   return (
     <aside className="side-stack">
-      <div className="companion-card level-medium">
+      <div className={`companion-card level-${companionLevel}`}>
         <div className="companion-inner">
           <div className="comp-head">
             <div>
@@ -36,7 +43,7 @@ export default function CompanionPanel({ progress, activePara, total, notes, mar
           <div className="metric-grid">
             <div className="metric">
               <span>陪伴感</span>
-              <strong>中</strong>
+              <strong>{companionLabels[companionLevel]}</strong>
             </div>
             <div className="metric">
               <span>阅读阶段</span>
@@ -46,6 +53,13 @@ export default function CompanionPanel({ progress, activePara, total, notes, mar
               <span>可视强度</span>
               <strong>柔和</strong>
             </div>
+          </div>
+          <div className="assist-actions">
+            {Object.keys(companionLabels).map((level) => (
+              <button className={companionLevel === level ? 'active' : ''} key={level} onClick={() => setCompanionLevel(level)}>
+                {companionLabels[level]}
+              </button>
+            ))}
           </div>
         </div>
       </div>

@@ -4,9 +4,11 @@ import Button from '../components/common/Button.jsx'
 import Card from '../components/common/Card.jsx'
 import PageHero from '../components/common/PageHero.jsx'
 import { activityItems } from '../data/community.js'
+import { useReadingSession } from '../hooks/useReadingSession.js'
 
 export default function CommunityPage({ goTo, community, setCommunity, selectedText }) {
   const [message, setMessage] = useState('')
+  const { readingSession } = useReadingSession()
 
   const sendMessage = () => {
     const text = message.trim()
@@ -34,8 +36,9 @@ export default function CommunityPage({ goTo, community, setCommunity, selectedT
             </div>
             <div className="room-stats">
               <RoomStat label="正在阅读" value="6 人" />
-              <RoomStat label="平均时长" value="22 分钟" />
-              <RoomStat label="共鸣留言" value={`${community.length + 15} 条`} />
+              <RoomStat label="我的进度" value={`${readingSession.progress}%`} />
+              <RoomStat label="当前段落" value={`${readingSession.currentParagraph + 1} / ${readingSession.paragraphCount || 1}`} />
+              <RoomStat label="共鸣留言" value={`${community.length + readingSession.notes.length + 15} 条`} />
             </div>
             <div className="room-action">
               <Button className="w-full">进入共读房间</Button>

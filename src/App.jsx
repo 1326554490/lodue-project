@@ -10,6 +10,7 @@ import CommunityPage from './pages/CommunityPage.jsx'
 import { sampleTexts } from './data/sampleTexts.js'
 import { modePresets } from './data/modes.js'
 import { initialCommunity } from './data/community.js'
+import { ReadingSessionProvider } from './hooks/useReadingSession.js'
 import { useReadingSettings } from './hooks/useReadingSettings.js'
 
 const pages = ['home', 'test', 'mode', 'reader', 'feedback', 'community']
@@ -20,7 +21,6 @@ function App() {
   const [mode, setMode] = useState('gentle')
   const [testState, setTestState] = useState({ step: 1, problem: '', feeling: '', seconds: 42 })
   const [community, setCommunity] = useState(initialCommunity)
-  const [notes, setNotes] = useState([])
   const { settings, updateSetting, applyModePreset, toggleSetting } = useReadingSettings(modePresets.gentle)
 
   const isDark = settings.bg === 'dark'
@@ -40,10 +40,8 @@ function App() {
       setTestState,
       community,
       setCommunity,
-      notes,
-      setNotes,
     }),
-    [applyModePreset, community, mode, notes, selectedText, settings, testState, toggleSetting, updateSetting],
+    [applyModePreset, community, mode, selectedText, settings, testState, toggleSetting, updateSetting],
   )
 
   const chooseMode = (key) => {
@@ -75,19 +73,21 @@ function App() {
   }
 
   return (
-    <AppShell page={page} goTo={setPage} goBack={goBack} isDark={isDark}>
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={page}
-          initial={{ opacity: 0, x: 24, filter: 'blur(4px)' }}
-          animate={{ opacity: 1, x: 0, filter: 'blur(0px)' }}
-          exit={{ opacity: 0, x: -18, filter: 'blur(3px)' }}
-          transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-        >
-          {renderPage()}
-        </motion.div>
-      </AnimatePresence>
-    </AppShell>
+    <ReadingSessionProvider>
+      <AppShell page={page} goTo={setPage} goBack={goBack} isDark={isDark}>
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={page}
+            initial={{ opacity: 0, x: 24, filter: 'blur(4px)' }}
+            animate={{ opacity: 1, x: 0, filter: 'blur(0px)' }}
+            exit={{ opacity: 0, x: -18, filter: 'blur(3px)' }}
+            transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+          >
+            {renderPage()}
+          </motion.div>
+        </AnimatePresence>
+      </AppShell>
+    </ReadingSessionProvider>
   )
 }
 

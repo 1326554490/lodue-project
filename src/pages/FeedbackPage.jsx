@@ -2,6 +2,7 @@ import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Too
 import Button from '../components/common/Button.jsx'
 import Card from '../components/common/Card.jsx'
 import PageHero from '../components/common/PageHero.jsx'
+import { useReadingSession } from '../hooks/useReadingSession.js'
 
 const focusData = [
   { time: '开始', focus: 42, calm: 55 },
@@ -21,7 +22,10 @@ const weekData = [
   { day: '日', value: 70 },
 ]
 
-export default function FeedbackPage({ goTo, selectedText, notes }) {
+export default function FeedbackPage({ goTo, selectedText }) {
+  const { getSessionSummary } = useReadingSession()
+  const summary = getSessionSummary()
+
   return (
     <section>
       <PageHero eyebrow="阅读反馈报告" title="这次阅读完成得很稳定">
@@ -34,8 +38,11 @@ export default function FeedbackPage({ goTo, selectedText, notes }) {
             <div className="row-title compact">本次阅读摘要</div>
             <div className="grid-2">
               <ReportCell label="阅读内容" value={selectedText.title} />
-              <ReportCell label="阅读时长" value="18 分钟" />
-              <ReportCell label="回看标记" value={`${Math.max(notes.length, 2)} 处`} />
+              <ReportCell label="阅读时长" value={formatDuration(summary.totalDuration)} />
+              <ReportCell label="完成进度" value={`${summary.progress}%`} />
+              <ReportCell label="难读标记" value={`${summary.difficultCount} 处`} />
+              <ReportCell label="便签数量" value={`${summary.noteCount} 条`} />
+              <ReportCell label="回看次数" value={`${summary.revisitTotal} 次`} />
               <ReportCell label="建议休息" value="3 分钟" />
             </div>
           </Card>
@@ -92,6 +99,12 @@ export default function FeedbackPage({ goTo, selectedText, notes }) {
       </div>
     </section>
   )
+}
+
+function formatDuration(seconds) {
+  if (seconds < 60) return `${seconds} 秒`
+
+  return `${Math.max(1, Math.round(seconds / 60))} 分钟`
 }
 
 function ReportCell({ label, value }) {

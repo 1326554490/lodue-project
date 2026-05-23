@@ -1,7 +1,28 @@
+import { useEffect, useRef } from 'react'
 import { modePresets } from '../../data/modes.js'
 
-export default function ReaderPaper({ text, settings, activePara, setActivePara, chooseMode, updateSetting }) {
+export default function ReaderPaper({ text, settings, activePara, onActiveParaChange, chooseMode, updateSetting }) {
   const paragraphs = text.content.split('\n').filter(Boolean)
+  const paragraphRefs = useRef([])
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0]
+
+        if (visible) {
+          onActiveParaChange(Number(visible.target.dataset.index))
+        }
+      },
+      { rootMargin: '-20% 0px -45% 0px', threshold: [0.35, 0.55, 0.75] },
+    )
+
+    paragraphRefs.current.filter(Boolean).forEach((node) => observer.observe(node))
+
+    return () => observer.disconnect()
+  }, [onActiveParaChange, paragraphs.length])
 
   return (
     <div className={`reader-paper paper-${settings.bg}`}>
@@ -40,8 +61,12 @@ export default function ReaderPaper({ text, settings, activePara, setActivePara,
         {paragraphs.map((paragraph, index) => (
           <p
             key={`${paragraph.slice(0, 12)}-${index}`}
+            ref={(node) => {
+              paragraphRefs.current[index] = node
+            }}
+            data-index={index}
             className={`para ${settings.focus ? (activePara === index ? 'active' : '') : 'no-focus'}`}
-            onClick={() => setActivePara(index)}
+            onClick={() => onActiveParaChange(index)}
             style={{
               fontSize: `${settings.font}px`,
               lineHeight: settings.line,
