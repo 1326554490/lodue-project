@@ -1,16 +1,18 @@
 const companionLabels = {
-  off: '关闭陪伴',
+  off: '关闭',
   weak: '轻陪伴',
-  medium: '标准陪伴',
-  strong: '强陪伴',
+  medium: '标准',
+  strong: '增强',
 }
 
 const levelCopy = {
-  off: '陪伴已关闭',
-  weak: '细波线轻提示',
-  medium: '标准陪伴流场',
-  strong: '强陪伴信号层',
+  off: '仅保留进度，不显示陪伴信号',
+  weak: '低打扰流线，轻提示当前位置',
+  medium: '显示阅读节奏、当前位置和轻微信号',
+  strong: '显示难读峰值、便签点与回看环路',
 }
+
+const stageLabels = ['进入', '稳定', '推进', '收束']
 
 export default function CompanionPanel({
   progress,
@@ -28,20 +30,26 @@ export default function CompanionPanel({
   const safeProgress = Math.min(100, Math.max(0, Math.round(progress || 0)))
   const safeLevel = companionLabels[companionLevel] ? companionLevel : 'medium'
   const visualHeight =
-    safeLevel === 'off' ? 108 :
-    safeLevel === 'weak' ? 176 :
-    safeLevel === 'medium' ? 228 : 260
+    safeLevel === 'off' ? 118 :
+    safeLevel === 'weak' ? 184 :
+    safeLevel === 'medium' ? 236 : 268
+  const revisitTotal = Object.values(revisitCount || {}).reduce((sum, count) => sum + count, 0)
+  const stageIndex = Math.min(stageLabels.length - 1, Math.floor(safeProgress / 25))
 
   return (
     <section className={`companion-card level-${safeLevel}${isDark ? ' is-dark' : ''}`} aria-label="Lodue Flow 陪伴面板">
       <div className="companion-inner">
         <div className="comp-head">
           <div>
-            <div className="pill-soft">Lodue陪伴中</div>
+            <div className="pill-soft">Lodue Flow 常驻</div>
             <h3>Lodue Flow</h3>
             <p>
               {levelCopy[safeLevel]} · {safeProgress}% · 第 {safeActive + 1} / {safeTotal} 段
             </p>
+          </div>
+          <div className="flow-stage">
+            <span>{stageLabels[stageIndex]}</span>
+            <strong>{safeProgress}%</strong>
           </div>
         </div>
 
@@ -55,6 +63,21 @@ export default function CompanionPanel({
           difficultMarks={difficultMarks}
           revisitCount={revisitCount}
         />
+
+        <div className="flow-signal-grid" aria-label="阅读信号摘要">
+          <div>
+            <span>当前段</span>
+            <strong>{safeActive + 1}</strong>
+          </div>
+          <div>
+            <span>回看</span>
+            <strong>{revisitTotal}</strong>
+          </div>
+          <div>
+            <span>标记</span>
+            <strong>{difficultMarks.length}</strong>
+          </div>
+        </div>
 
         <div className="flow-legend" aria-hidden="true">
           {safeLevel === 'off' ? (
@@ -91,6 +114,10 @@ function LodueFlow({ level, progress, activeParagraph, totalParagraphs, visualHe
   const progressWidth = `${Math.min(100, Math.max(0, progress))}%`
   const activeLabel = `第 ${activeParagraph + 1} / ${safeTotal} 段`
   const noteParagraphs = [...new Set((notes || []).map((note) => note.paragraphIndex))]
+  const signalIndexes = Array.from({ length: Math.min(safeTotal, 7) }, (_, index) => {
+    if (safeTotal <= 1) return 0
+    return Math.round((index / (Math.min(safeTotal, 7) - 1)) * (safeTotal - 1))
+  })
   const xForIndex = (index) => 8 + ((Math.min(Math.max(index, 0), safeTotal - 1) + 1) / safeTotal) * 84
   const drift = Math.round(currentRatio * 10)
 
@@ -98,7 +125,7 @@ function LodueFlow({ level, progress, activeParagraph, totalParagraphs, visualHe
     return (
       <div className="reading-field field-off" style={{ height: visualHeight }}>
         <strong>{progress}%</strong>
-        <span>{activeLabel} · 陪伴已关闭</span>
+        <span>{activeLabel} · 陪伴信号已隐藏</span>
         <div className="field-off-track">
           <span style={{ width: progressWidth }} />
         </div>
@@ -108,7 +135,15 @@ function LodueFlow({ level, progress, activeParagraph, totalParagraphs, visualHe
 
   return (
     <div className={`reading-field field-${level}`} style={{ height: visualHeight }}>
+      <div className="field-grid" aria-hidden="true" />
+      <div className="field-glow glow-a" aria-hidden="true" />
+      <div className="field-glow glow-b" aria-hidden="true" />
+
       <svg className="flow-svg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+        <path
+          className="flow-wave aura"
+          d={`M 3 ${54 - drift / 3} C 17 ${26 + drift}, 31 ${74 - drift}, 46 51 S 73 ${30 + drift / 2}, 97 ${50 - drift / 4}`}
+        />
         <path
           className="flow-wave primary"
           d={`M 4 ${52 - drift / 3} C 18 ${35 + drift}, 31 ${67 - drift}, 45 51 S 72 ${36 + drift / 2}, 96 ${51 - drift / 4}`}
@@ -135,8 +170,17 @@ function LodueFlow({ level, progress, activeParagraph, totalParagraphs, visualHe
 
       <div className="field-progress" style={{ width: progressWidth }} />
       <div className="field-progress-line" style={{ left: currentX }} />
-      <div className={`field-cursor ${level === 'strong' ? 'strong' : ''}`} style={{ left: currentX }} />
+      <div className={`field-cursor ${level === 'strong' ? 'strong' : ''}`} style={{ left: currentX }}>
+        <span>{activeParagraph + 1}</span>
+      </div>
 
+      {signalIndexes.map((index) => (
+        <span
+          className={`field-node${index === activeParagraph ? ' active' : ''}${difficultMarks.includes(index) ? ' difficult' : ''}`}
+          key={`node-${index}`}
+          style={{ left: `${xForIndex(index)}%` }}
+        />
+      ))}
       {level === 'strong'
         ? (difficultMarks || []).map((index) => <span className="field-peak" key={`peak-${index}`} style={{ left: `${xForIndex(index)}%` }} />)
         : null}

@@ -2239,6 +2239,310 @@ input[type="range"] {
   font-weight: 800;
 }
 
+.companion-card {
+  border-color: rgba(255, 255, 255, 0.92);
+  background:
+    linear-gradient(150deg, rgba(255, 255, 255, 0.86), rgba(242, 249, 248, 0.78) 45%, rgba(247, 241, 255, 0.72)),
+    radial-gradient(circle at 12% 18%, rgba(109, 198, 187, 0.22), transparent 34%),
+    radial-gradient(circle at 88% 6%, rgba(231, 177, 121, 0.2), transparent 30%);
+  box-shadow:
+    0 20px 45px rgba(63, 83, 91, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.78);
+  backdrop-filter: blur(18px);
+}
+
+.companion-card::before,
+.companion-card::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+}
+
+.companion-card::before {
+  inset: 0;
+  background:
+    linear-gradient(120deg, rgba(255, 255, 255, 0.48), transparent 38%),
+    radial-gradient(circle at 74% 28%, rgba(138, 115, 181, 0.14), transparent 30%);
+}
+
+.companion-card::after {
+  left: 16px;
+  right: 16px;
+  bottom: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(88, 174, 163, 0.38), transparent);
+}
+
+.companion-inner {
+  position: relative;
+  z-index: 1;
+  padding: 18px;
+}
+
+.comp-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.comp-head h3 {
+  letter-spacing: 0;
+}
+
+.flow-stage {
+  min-width: 66px;
+  border: 1px solid rgba(255, 255, 255, 0.78);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.46);
+  padding: 8px 9px;
+  text-align: right;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.62);
+}
+
+.flow-stage span,
+.flow-signal-grid span {
+  display: block;
+  color: #7b9096;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.flow-stage strong {
+  display: block;
+  margin-top: 3px;
+  color: #2f756e;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.reading-field {
+  border-color: rgba(255, 255, 255, 0.88);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.68), rgba(246, 252, 251, 0.38)),
+    radial-gradient(circle at 18% 28%, rgba(88, 174, 163, 0.16), transparent 32%),
+    radial-gradient(circle at 82% 34%, rgba(176, 154, 219, 0.16), transparent 34%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.78),
+    inset 0 -1px 0 rgba(88, 174, 163, 0.08);
+}
+
+.field-grid {
+  position: absolute;
+  inset: 14px 12px 28px;
+  opacity: 0.32;
+  background:
+    linear-gradient(90deg, rgba(88, 174, 163, 0.16) 1px, transparent 1px) 0 0 / 22px 100%,
+    linear-gradient(180deg, rgba(88, 174, 163, 0.12) 1px, transparent 1px) 0 0 / 100% 24px;
+  mask-image: linear-gradient(90deg, transparent, #000 18%, #000 82%, transparent);
+}
+
+.field-glow {
+  position: absolute;
+  width: 110px;
+  height: 110px;
+  border-radius: 50%;
+  filter: blur(16px);
+  opacity: 0.42;
+}
+
+.field-glow.glow-a {
+  left: -34px;
+  top: 22px;
+  background: rgba(88, 174, 163, 0.24);
+}
+
+.field-glow.glow-b {
+  right: -36px;
+  top: 42px;
+  background: rgba(176, 154, 219, 0.22);
+}
+
+.flow-svg {
+  inset: 10px 10px 26px;
+  width: calc(100% - 20px);
+  height: calc(100% - 36px);
+  overflow: visible;
+}
+
+.flow-wave.aura {
+  stroke: rgba(88, 174, 163, 0.12);
+  stroke-width: 8;
+  filter: blur(2px);
+}
+
+.flow-wave.primary {
+  stroke: rgba(37, 155, 145, 0.92);
+  stroke-width: 2.7;
+}
+
+.flow-wave.secondary {
+  stroke: rgba(138, 115, 181, 0.46);
+  stroke-width: 1.8;
+}
+
+.flow-wave.tertiary {
+  stroke: rgba(231, 137, 61, 0.42);
+  stroke-width: 1.6;
+}
+
+.field-progress {
+  left: 8%;
+  bottom: 18px;
+  height: 3px;
+  background: linear-gradient(90deg, rgba(88, 174, 163, 0.72), rgba(138, 115, 181, 0.44));
+  box-shadow: 0 0 16px rgba(88, 174, 163, 0.2);
+}
+
+.field-progress-line {
+  top: 14px;
+  bottom: 18px;
+  background: linear-gradient(180deg, transparent, rgba(47, 117, 110, 0.78), transparent);
+}
+
+.field-cursor {
+  width: 18px;
+  height: 18px;
+  border: 3px solid rgba(255, 255, 255, 0.92);
+  background: #37a79c;
+  color: #fff;
+  box-shadow:
+    0 0 0 7px rgba(88, 174, 163, 0.14),
+    0 0 22px rgba(88, 174, 163, 0.28);
+}
+
+.field-cursor span {
+  display: block;
+  font-size: 9px;
+  line-height: 1;
+}
+
+.field-node {
+  top: calc(50% + 34px);
+  width: 7px;
+  height: 7px;
+  background: rgba(88, 174, 163, 0.38);
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.24);
+  z-index: 2;
+}
+
+.field-node.active {
+  width: 11px;
+  height: 11px;
+  background: #2fa79b;
+}
+
+.field-node.difficult {
+  background: #e7893d;
+}
+
+.field-peak {
+  bottom: 38px;
+  width: 9px;
+  height: 36px;
+  opacity: 0.86;
+  box-shadow:
+    0 0 0 5px rgba(231, 137, 61, 0.08),
+    0 10px 18px rgba(231, 137, 61, 0.16);
+}
+
+.field-note {
+  bottom: 32px;
+  width: 9px;
+  height: 9px;
+  border: 2px solid rgba(255, 255, 255, 0.7);
+}
+
+.field-loop-dot {
+  top: 30px;
+  background: rgba(255, 246, 235, 0.68);
+}
+
+.field-meta {
+  bottom: 27px;
+}
+
+.field-meta strong {
+  font-size: 24px;
+}
+
+.field-caption {
+  right: 14px;
+  bottom: 9px;
+  max-width: calc(100% - 28px);
+  color: #6e858c;
+  text-align: right;
+}
+
+.field-off {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.62), rgba(247, 251, 251, 0.44)),
+    radial-gradient(circle at 50% 0, rgba(88, 174, 163, 0.12), transparent 42%);
+}
+
+.flow-signal-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin: 0 0 10px;
+}
+
+.flow-signal-grid div {
+  border: 1px solid rgba(255, 255, 255, 0.62);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.42);
+  padding: 9px 8px;
+  text-align: center;
+}
+
+.flow-signal-grid strong {
+  display: block;
+  margin-top: 3px;
+  color: #38555f;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.flow-legend {
+  margin-top: 6px;
+  margin-bottom: 12px;
+}
+
+.assist-actions {
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+
+.assist-actions button {
+  min-height: 34px;
+  border: 1px solid rgba(255, 255, 255, 0.62);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.5);
+  padding: 7px 4px;
+}
+
+.assist-actions button.active {
+  background: linear-gradient(135deg, #58aea3, #7abfb7);
+  box-shadow: 0 9px 18px rgba(88, 174, 163, 0.18);
+}
+
+.companion-card.is-dark .flow-stage,
+.companion-card.is-dark .flow-signal-grid div,
+.companion-card.is-dark .assist-actions button {
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.companion-card.is-dark .flow-stage span,
+.companion-card.is-dark .flow-signal-grid span {
+  color: rgba(226, 240, 245, 0.64);
+}
+
+.companion-card.is-dark .flow-stage strong,
+.companion-card.is-dark .flow-signal-grid strong {
+  color: #d9fffb;
+}
+
 .legend-progress,
 .legend-helper,
 .legend-current {
