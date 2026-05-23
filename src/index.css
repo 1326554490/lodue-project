@@ -1,0 +1,15 @@
+@import "tailwindcss";
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  font-family:
+    "HarmonyOS Sans SC",
+    "PingFang SC",
+    "Microsoft YaHei",
+    "Noto Sans CJK SC",
+    sans-serif;
+}
