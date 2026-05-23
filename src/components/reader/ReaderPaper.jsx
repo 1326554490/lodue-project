@@ -1,4 +1,4 @@
-import { AlertCircle, PenLine, StickyNote, Trash2, X } from 'lucide-react'
+import { AlertCircle, Highlighter, Paperclip, PenLine, Ruler, StickyNote, Trash2, X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
 export default function ReaderPaper({
@@ -9,6 +9,7 @@ export default function ReaderPaper({
   onActiveParaChange,
   chooseMode,
   updateSetting,
+  toggleSetting,
   difficultMarks,
   notes,
   addNote,
@@ -127,19 +128,26 @@ export default function ReaderPaper({
       onMouseMove={handleMouseMove}
       onMouseLeave={handleLeavePaper}
     >
-      <div className="reader-rail">
+      <div className="reader-rail" aria-label="阅读工具">
         <div className="rail-label">字号</div>
-        <button className="rail-btn" onClick={() => updateSetting('font', Math.min(24, settings.font + 1))}>A+</button>
-        <button className="rail-btn" onClick={() => updateSetting('font', Math.max(15, settings.font - 1))}>A-</button>
+        <button className="rail-btn" onClick={() => updateSetting('font', Math.min(24, settings.font + 1))} title="放大字号">A+</button>
+        <button className="rail-btn" onClick={() => updateSetting('font', Math.max(15, settings.font - 1))} title="缩小字号">A-</button>
         <div className="rail-divider" />
         <div className="rail-label">模式</div>
-        <button className="rail-btn" onClick={() => chooseMode('gentle')}>舒</button>
-        <button className="rail-btn" onClick={() => chooseMode('focus')}>专</button>
-        <button className="rail-btn" onClick={() => chooseMode('clear')}>清</button>
+        <button className={`rail-btn ${mode === 'gentle' ? 'active' : ''}`} onClick={() => chooseMode('gentle')} title="轻柔模式">柔</button>
+        <button className={`rail-btn ${mode === 'focus' ? 'active' : ''}`} onClick={() => chooseMode('focus')} title="专注模式">专</button>
+        <button className={`rail-btn ${mode === 'clear' ? 'active' : ''}`} onClick={() => chooseMode('clear')} title="清晰模式">清</button>
         <div className="rail-divider" />
         <div className="rail-label">背景</div>
-        <button className="rail-btn" onClick={() => updateSetting('bg', 'mist')}>浅</button>
-        <button className="rail-btn" onClick={() => updateSetting('bg', 'dark')}>深</button>
+        <button className={`rail-btn ${settings.bg === 'mist' ? 'active' : ''}`} onClick={() => updateSetting('bg', 'mist')} title="浅色背景">浅</button>
+        <button className={`rail-btn ${settings.bg === 'dark' ? 'active' : ''}`} onClick={() => updateSetting('bg', 'dark')} title="深色背景">深</button>
+        <div className="rail-divider" />
+        <button className={`rail-btn icon ${settings.focus ? 'active' : ''}`} onClick={() => toggleSetting('focus')} title="高亮当前段落" aria-label="高亮当前段落">
+          <Highlighter size={15} />
+        </button>
+        <button className={`rail-btn icon ${settings.ruler ? 'active' : ''}`} onClick={() => toggleSetting('ruler')} title="阅读尺" aria-label="阅读尺">
+          <Ruler size={15} />
+        </button>
       </div>
 
       {settings.ruler ? <div className={`reading-ruler ruler-${mode}`} style={{ top: rulerY }} /> : null}
@@ -149,7 +157,6 @@ export default function ReaderPaper({
           const isActive = activePara === index
           const isDifficult = difficultMarks.includes(index)
           const paragraphNotes = notesByParagraph[index] || []
-
           const isNoteOpenForParagraph = openNoteParagraph === index && (isAddingNote || openNote?.paragraphIndex === index)
 
           return (
@@ -194,7 +201,7 @@ export default function ReaderPaper({
                     event.stopPropagation()
                     markDifficult(index)
                   }}
-                  title={isDifficult ? '取消回看' : '需要回看'}
+                  title={isDifficult ? '取消回看标记' : '需要回看'}
                   aria-label={isDifficult ? `取消第 ${index + 1} 段回看标记` : `标记第 ${index + 1} 段需要回看`}
                 >
                   <AlertCircle size={15} />
@@ -218,12 +225,12 @@ export default function ReaderPaper({
               {isNoteOpenForParagraph ? (
                 <span className="sticky-popover" onClick={(event) => event.stopPropagation()}>
                   <span className="sticky-corner" />
-                  <span className="sticky-pin" />
+                  <span className="sticky-pin"><Paperclip size={14} /></span>
                   <strong>{isAddingNote ? '新便签' : `第 ${index + 1} 段`}</strong>
                   <textarea value={noteDraft} onChange={(event) => setNoteDraft(event.target.value)} placeholder="疑问、共鸣或回看理由..." autoFocus />
                   <span className="sticky-actions">
-                    <button onClick={closeNote} title="收起"><X size={13} /></button>
-                    {!isAddingNote ? <button onClick={handleDeleteNote} title="删除"><Trash2 size={13} /></button> : null}
+                    <button onClick={closeNote} title="收起" aria-label="收起便签"><X size={13} /></button>
+                    {!isAddingNote ? <button onClick={handleDeleteNote} title="删除" aria-label="删除便签"><Trash2 size={13} /></button> : null}
                     <button className="primary" onClick={handleSaveNote} disabled={!noteDraft.trim()}>保存</button>
                   </span>
                 </span>
