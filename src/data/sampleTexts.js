@@ -1,49 +1,115 @@
+const dreamParagraphs = [
+  '雨后的园子像被重新洗过一遍，青苔从石缝里透出湿润的颜色。宝玉沿着回廊慢慢走来，手里还拿着半卷书，书页被风掀起一角，像有人轻轻提醒他不要走得太急。',
+  '黛玉坐在窗边，把一枝新折的海棠插进小瓶。她并不抬头，只听见脚步声近了，便把书合上，淡淡说道：“才下过雨，路上滑，你又这样匆匆忙忙。”',
+  '宝玉笑道：“我原不是来扰你，只是方才读到一处，心里忽然不明白，想来问问妹妹。”他把书放在案上，又怕水痕沾到纸页，忙用袖口轻轻拂了拂。',
+  '黛玉看他这副小心样子，忍不住笑了一下。那笑意很浅，很快又收回去，像雨后云层里露出的一线光，让人还未看清，便已经藏进更远的天色里。',
+  '书里写的是远行的人，在渡口回望故乡。宝玉说，他不懂为什么那人明明要走，却又一再回头；黛玉说，人若真能舍得，便不会把回头写得这样细。',
+  '紫鹃从外间端茶进来，听见二人谈书，便把脚步放轻。茶盏落在桌面上，发出一点温和的声响，正好把刚才那句未说完的话接住。',
+  '宝玉低声道：“我看书时常觉得，纸上的人离我们很远，可一读到伤心处，又像坐在眼前。”黛玉垂着眼道：“远近原不在纸上，在读书人的心里。”',
+  '窗外芭蕉叶上还积着水，一滴一滴落下去。每一滴都像把屋中的静延长了一些，让人不好马上说话，也不好完全沉默。',
+  '宝玉翻到另一页，说这里写月色，文字不多，却叫人觉得一院子都亮了。黛玉接过书看了看，说：“好文字不一定热闹，它只是把你原本没有留意的地方点亮。”',
+  '这句话说完，两个人都安静下来。宝玉想起自己平日读书，总爱先看情节的奇巧，却常常忘了句子里的细微停顿，也忘了每一次停顿后藏着的心绪。',
+  '黛玉把书推回去，又说：“你若只是为知道后来怎样，读得快些也无妨。若要听见里面人的气息，便该慢一点，像在雨里走路，急了反倒看不清。”',
+  '宝玉点头，却又笑道：“若读得太慢，怕被人说成呆子。”黛玉道：“呆也有呆的好处。世上聪明人太多，肯把一句话多看两遍的人却不多。”',
+  '紫鹃在旁边听着，也笑了，说姑娘这话倒像专门说给二爷听的。黛玉脸上一红，转过头去看窗外，只说茶凉了，叫她再添些热水。',
+  '屋里香气渐淡，雨声也小了。远处有人在廊下收伞，竹骨合拢时响了一下，像一段话终于有了结尾，却又让人觉得还有余音。',
+  '宝玉把书重新翻开，这回没有急着读下去。他先看标题，又看旁边的批注，仿佛那些小字不是随手写下，而是另一个读书人留给后来人的路标。',
+  '批注里写着“此处宜停”。宝玉念出来，觉得有趣。黛玉说：“停不是不读，是让心追上眼睛。眼睛走得太快，心便会在后面落单。”',
+  '宝玉听了这话，忽然觉得今天这场雨也像一枚书签，把很多平日滑过去的地方都暂时夹住。等他再打开时，才发现旧句子也有新意思。',
+  '他们又读到一段离别。黛玉说，离别最难写的不是哭，而是明明有许多话，却只说天气、茶水和路程。宝玉点头，说这样才像真的。',
+  '小丫头在门外探头，问晚饭可要摆在这边。黛玉说再等一会儿。宝玉听见“再等一会儿”，心里莫名欢喜，仿佛这短短一句也替书中人留住了渡口。',
+  '天色渐暗，屋里的影子被灯光慢慢安放。书页上的字在光里变得更清楚，可两个人说话的声音却更轻，像怕惊动那些刚刚读出的心事。',
+  '宝玉说，若以后读书都有人在旁边说两句，恐怕会懂得更多。黛玉道：“也未必。有人陪着，是为了不孤单；真正懂不懂，仍要自己静下来。”',
+  '这句话让宝玉想了许久。他原以为陪伴就是热闹，今日才觉得，好的陪伴也可以很安静，只在你要走神时轻轻拉一拉，在你读懂时悄悄退开。',
+  '雨终于停了，檐下只剩水珠偶尔落下。黛玉把书签夹在刚才停过的地方，说今日读到这里便好，再往下读，心气散了，反而辜负前面的意思。',
+  '宝玉虽有些不舍，却也把书收起。他看见书签露出一小截淡青色，像雨后新叶，便觉得明日再读时，这一段静默也会跟着重新打开。',
+  '紫鹃送他出门，回头见黛玉仍坐在灯下，手指轻轻按着书脊。她没有再翻页，只像是在回想刚才的几句话，分辨哪些属于书，哪些属于自己。',
+  '园中晚风吹过，带着泥土和花叶的清气。宝玉走在回廊上，步子果然慢了些。他忽然明白，慢读不是拖延，而是给那些细小的感受留一处坐下的地方。',
+]
+
+const aiParagraphs = [
+  'Artificial intelligence research is moving from isolated benchmark performance toward systems that can participate in extended human work. The question is no longer only whether a model can produce a correct answer, but whether it can support a person through uncertainty, revision, and interpretation.',
+  'This shift changes the role of interface design. A powerful model hidden behind a vague input box may still leave users guessing about intent, evidence, and next steps. Interaction patterns need to make the system state legible without forcing people to read technical explanations at every moment.',
+  'In reading and learning contexts, adaptive assistance has particular value. Readers do not struggle in one single way. Some lose their place in dense paragraphs, some move too quickly to retain meaning, and others understand the content but become tired by visual clutter.',
+  'Future AI reading tools should therefore observe lightweight behavioral signals. Scroll position, dwell time, paragraph revisits, note density, and explicit difficulty marks can become useful indicators when they are treated as approximate cues rather than diagnostic labels.',
+  'The design challenge is to transform these signals into support that feels calm. If every hesitation triggers a warning, the system becomes another source of fatigue. If the tool remains completely silent, it misses the opportunity to guide the reader at the moment help is needed.',
+  'A promising direction is graduated assistance. At a low level, the system may show only a subtle progress point. At a medium level, it can reveal rhythm and paragraph structure. At a stronger level, it can visualize difficult passages, revisits, and notes as part of the reading path.',
+  'Transparency also matters. Users should understand why a mode or suggestion appears. A recommendation such as “clear mode” is more useful when paired with a short explanation: the reader revisited earlier paragraphs and marked dense sentences, so stronger spacing may help.',
+  'Personalization must remain adjustable. The system can propose settings, but readers should be able to change font size, line height, contrast, and companion intensity. Control is especially important when assistive features affect attention and comfort.',
+  'Evaluation methods need to expand accordingly. Accuracy scores do not capture whether a reader feels less tired or more able to continue. Studies should include comprehension, perceived effort, sustained attention, trust, and the ability to recover after confusion.',
+  'There are also privacy concerns. Reading behavior can reveal sensitive information about cognitive state, interests, and emotional response. Systems should store only what is necessary, explain what is recorded, and avoid turning supportive cues into surveillance metrics.',
+  'The boundary between automation and companionship is delicate. A reading assistant should not pretend to understand a person completely. It should offer small, situated support while leaving interpretation and judgment with the reader.',
+  'Large language models can contribute by summarizing difficult passages, rephrasing dense sentences, and generating reflective questions. However, these features should be placed carefully so they do not interrupt the primary act of reading.',
+  'For long documents, structure-aware assistance becomes essential. Section maps, paragraph anchors, and semantic keywords can help readers maintain orientation across many pages. This is especially useful when the text mixes narrative, argument, and technical terminology.',
+  'Multilingual reading introduces another layer. Translation is helpful, but excessive translation can prevent readers from developing confidence in the original text. Tools should allow partial glosses, term explanations, and side-by-side support without replacing the source.',
+  'The future system is likely to be multimodal. It may combine text layout, visual rhythm, audio cues, and gentle haptic feedback. The important point is not to add more signals, but to coordinate them so that each one has a clear purpose.',
+  'Researchers should also consider failure modes. A model might misinterpret slow reading as confusion, or fast reading as mastery. The interface should communicate uncertainty and invite correction rather than presenting behavioral inference as fact.',
+  'Human-centered AI requires humility in both modeling and design. People read for information, pleasure, escape, study, and connection. A single optimization target cannot represent all of these intentions.',
+  'In practice, successful tools may look less dramatic than many demonstrations of AI capability. They may simply make text easier to stay with, help readers notice when they are losing focus, and provide a quiet way to return.',
+  'Such systems will require collaboration among machine learning researchers, designers, educators, accessibility specialists, and readers themselves. The best evidence will come from use in realistic settings, not only controlled tasks.',
+  'Ultimately, the future of AI research in reading is not about replacing the reader. It is about building environments where attention, comprehension, and comfort can be supported with care.',
+]
+
+const manualParagraphs = [
+  '欢迎使用 Lodue 阅读空间。Lodue 面向容易阅读疲劳、轻微跳行串行、注意力容易被界面打断的用户，目标不是把阅读变成任务管理，而是让长文本更容易被稳定地读完。',
+  '首次进入时，你可以从示例文本开始，也可以粘贴自己的文章、论文、说明文或课程资料。系统会先进行阅读状态校准，再根据今天的状态推荐合适的阅读模式。',
+  '校准流程包含今日自评、阅读基线测试、阅读后反馈和阅读画像生成。它不是医学诊断，只用于调整当前会话中的字号、行距、视觉定位和陪伴强度。',
+  '今日自评会询问眼睛疲劳、跳行串行、分心倾向、节奏偏好、深浅色偏好和是否需要陪伴提示。你可以选择多个选项，因为阅读状态往往不是单一原因造成的。',
+  '阅读基线测试需要手动开始计时。请在准备好之后点击开始，再按平常速度阅读测试文本。读完时点击完成，系统会记录实际秒数。',
+  '如果阅读时间过短，系统会建议重新测试。这样做是为了避免误触造成不可信的结果，也避免把很短的停留错误理解为高速阅读。',
+  '阅读后反馈用于补充主观感受。你可以告诉系统是否理解顺畅、是否需要回看、文字是否密集、界面元素是否分散注意力，以及希望陪伴更明显还是更安静。',
+  'Lodue 当前提供三种阅读模式。舒缓模式适合低压力慢读，整体背景更柔和，字号略大，行距更宽，非当前段落不会被过度压暗。',
+  '专注模式适合容易分心的用户。当前段落会更突出，其他段落会明显弱化，左侧聚焦条和柔光阅读尺会帮助你把注意力留在正在读的位置。',
+  '清晰模式适合容易跳行或串行的用户。它会增加字间距和段落间距，在每段左侧显示编号，并使用更清楚的段落边界帮助定位。',
+  '阅读页左侧窄工具栏可以快速调整字号、模式和背景。顶部工具栏提供字号、高亮、阅读尺和便签入口，适合在阅读过程中进行轻量调整。',
+  '阅读尺不是遮挡文字的色块，而是定位辅助。鼠标在正文区域移动时，它会跟随鼠标；鼠标离开后，它会回到当前段落中部。',
+  '当你把鼠标悬停在某个段落上，Lodue 会优先认为那是当前阅读段落。如果没有悬停，系统会使用视口中部偏上的锚点来判断最接近的段落。',
+  '阅读进度根据已到达的最远段落计算。你可以回看前文，当前段落会倒退，但总体进度不会倒退，这样更符合真实阅读过程。',
+  '如果你回到已经读过的前面段落，系统会记录回看次数。回看记录有短暂冷却，避免滚动抖动造成重复计数。',
+  '遇到难读段落时，可以在右侧面板点击标记难读。被标记的段落会出现柔和的橙色提示，不再用突兀的文字标签覆盖正文。',
+  '再次点击标记按钮可以取消难读。右侧进度卡和陪伴流场会同步变化，帮助你看到哪些位置需要稍后回看。',
+  '便签用于记录疑问、共鸣或需要复盘的句子。添加便签后，段落旁会出现轻量图标，点击图标可以打开半透明便签浮层进行查看、编辑或删除。',
+  '右侧“我的便签”会同步显示所有便签。每条便签都会标注段落编号，方便阅读后复盘时快速回到上下文。',
+  '陪伴强度分为关闭陪伴、轻陪伴、标准陪伴和强陪伴。关闭时隐藏主可视化，只保留阅读进度；轻陪伴只显示细波线和当前进度点。',
+  '标准陪伴会显示阅读波线、段落节点和节奏反馈。强陪伴会额外呈现难读峰值、回看涟漪和便签节点，适合需要更明确外部提示的场景。',
+  '完成阅读后，反馈页会总结阅读时长、进度、难读标记、便签数量和回看情况。你可以把这些信息当作复盘线索，而不是对阅读能力的评价。',
+]
+
 export const sampleTexts = [
   {
     id: 'dream',
     tag: '中文长文',
     title: '《红楼梦》节选 · 雨后共读',
-    desc: '经典文学片段，适合体验中文长文与慢读节奏。',
-    content: `宝玉听了，忙走出来笑道：“好妹妹，你别恼。我原是一时说错了话。”黛玉只低头理着手中的书页，并不答言。窗外细雨微微，落在芭蕉叶上，像有人轻轻敲着旧时的门。
-
-屋里一时静了下来，只有炉中香气缓缓散开。宝玉见她神色淡淡，便也不敢再说，只在旁边坐下。黛玉翻过一页，忽然说道：“你看这书里的人，明明心里有千言万语，却偏偏要藏着。”
-
-宝玉听了，似有所悟，低声道：“或许不是藏着，只是怕说出来以后，便再也收不回去了。”黛玉抬眼看他，窗外的雨声更密了一些，像把两个人未说出口的话都轻轻围住。
-
-紫鹃从外头进来，手里捧着一盏热茶，见二人都不说话，便笑道：“才刚还听见说书，怎么我一进来，倒像进了佛堂似的。”黛玉微微一笑，把书合上，伸手接过茶盏。
-
-宝玉见她笑了，心里才松快些，又指着那书道：“妹妹方才说这书里的人藏着话，我倒觉得，书之所以好，正因它替人藏得住话。我们不好说的，它能说；我们说不明白的，它也能慢慢说。”
-
-黛玉听了，低头吹了吹茶上的热气，说道：“书自然能说，只是看书的人未必都听得见。若是心粗，便只看见故事；若是心细，连纸页翻动的声音，也像一句叹息。”`,
+    desc: '经典文学气质的长文本，适合体验中文慢读、情绪理解和段落定位。',
+    estimatedMinutes: 9,
+    difficulty: '中等',
+    density: '中',
+    keywords: ['慢读', '雨后', '共读', '情绪', '批注'],
+    recommendedMode: 'gentle',
+    content: dreamParagraphs.join('\n\n'),
   },
   {
     id: 'ai',
-    tag: '英文摘要',
+    tag: '英文论文',
     title: 'The Future of AI Research',
-    desc: 'Academic paper abstract for English reading.',
-    content: `Artificial intelligence research is moving from isolated model performance toward human-centered collaboration. Future systems are expected to support reasoning, planning, and adaptive interaction across complex contexts.
-
-However, the effectiveness of these systems does not only depend on model scale. It also depends on interface design, user trust, feedback mechanisms, and the ability to explain intermediate states.
-
-This paper discusses how interactive AI systems can better support learning, reading, and knowledge work through transparent workflows and personalized assistance.
-
-In these scenarios, the user is not only a passive receiver of generated content, but also an active participant who continuously interprets, corrects, and reshapes the system output.
-
-A key design challenge is how to make complex model behavior legible without overwhelming the user. Explanations should be timely, lightweight, and situated in the user's current task.
-
-The future of AI research will likely involve closer integration between algorithms, interaction design, evaluation methods, and human values.`,
+    desc: '英文论文式示例，适合体验较高信息密度、术语和段落节奏。',
+    estimatedMinutes: 8,
+    difficulty: '较高',
+    density: '高',
+    keywords: ['AI research', 'adaptive assistance', 'interface design', 'reading signals', 'privacy'],
+    recommendedMode: 'focus',
+    content: aiParagraphs.join('\n\n'),
   },
   {
     id: 'manual',
     tag: '产品说明',
     title: 'Lodue 产品使用说明',
-    desc: '技术文档范例，适合快速浏览和功能说明。',
-    content: `欢迎使用 Lodue 阅读空间。首次使用时，你可以选择示例文本，也可以粘贴自己的文章、论文或资料。系统会在开始前进行轻量阅读状态校准，并根据反馈推荐合适的阅读模式。
-
-阅读过程中，你可以调整字号、行距、背景色，也可以开启当前段落高亮、阅读尺和关键词提示。右侧面板会显示本次阅读进度、阅读节奏、情绪光谱和关键词。
-
-完成阅读后，系统将生成阅读反馈，帮助你了解自己的专注状态、疲劳程度和内容理解情况。
-
-Lodue 的轻社交功能不会打断阅读。你可以在章节旁留下便签，也可以进入共读房间查看朋友的阅读状态。系统默认只展示简短、安静的互动。`,
+    desc: '产品说明文范例，适合快速浏览功能、状态反馈和操作路径。',
+    estimatedMinutes: 7,
+    difficulty: '中等',
+    density: '中',
+    keywords: ['校准', '阅读模式', '便签', '难读标记', '陪伴强度'],
+    recommendedMode: 'clear',
+    content: manualParagraphs.join('\n\n'),
   },
 ]

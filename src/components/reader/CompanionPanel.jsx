@@ -1,10 +1,17 @@
 import Card from '../common/Card.jsx'
 
 const companionLabels = {
-  off: '关闭',
-  weak: '弱',
-  medium: '中',
-  strong: '强',
+  off: '关闭陪伴',
+  weak: '轻陪伴',
+  medium: '标准陪伴',
+  strong: '强陪伴',
+}
+
+const companionDescriptions = {
+  off: '仅保留进度，降低存在感。',
+  weak: '细波线和当前位置。',
+  medium: '加入便签点和难读峰。',
+  strong: '显示回看弧线与完整信号。',
 }
 
 export default function CompanionPanel({
@@ -12,7 +19,6 @@ export default function CompanionPanel({
   activePara,
   total,
   notes,
-  markDifficult,
   difficultyCount,
   difficultMarks,
   revisitCount,
@@ -24,22 +30,16 @@ export default function CompanionPanel({
   const stage = progress < 35 ? '渐入' : progress < 70 ? '沉浸' : '收束'
   const revisitTotal = Object.values(revisitCount).reduce((sum, count) => sum + count, 0)
   const modeSignal = mode === 'focus' ? '专注跟随' : mode === 'clear' ? '清晰定位' : '低压力阅读'
-  const visualLabel = {
-    off: '极简',
-    weak: '细流线',
-    medium: '多线跟随',
-    strong: '峰值与回环',
-  }[companionLevel]
 
   return (
     <aside className="side-stack">
-      <div className={`companion-card level-${companionLevel}`}>
+      <div className={`companion-card level-${companionLevel} companion-sticky`}>
         <div className="companion-inner">
           <div className="comp-head">
             <div>
-              <div className="pill-soft">Lodue 陪伴中</div>
-              <h3>陪伴流场</h3>
-              <p>{companionLevel === 'off' ? '当前仅保留文字状态，减少视觉输入。' : `${modeSignal} · ${visualLabel}会随进度、难读和回看变化。`}</p>
+              <div className="pill-soft">Lodue Flow</div>
+              <h3>阅读流</h3>
+              <p>{companionLevel === 'off' ? '陪伴已弱化，仅显示当前进度。' : `${modeSignal}，信号随段落推进更新。`}</p>
             </div>
           </div>
           <ReadingField
@@ -49,25 +49,18 @@ export default function CompanionPanel({
             total={total}
             difficultMarks={difficultMarks}
             revisitCount={revisitCount}
+            notes={notes}
             stage={stage}
           />
-          <div className="metric-grid">
-            <div className="metric">
-              <span>陪伴感</span>
-              <strong>{companionLabels[companionLevel]}</strong>
-            </div>
-            <div className="metric">
-              <span>阅读阶段</span>
-              <strong>{stage}</strong>
-            </div>
-            <div className="metric">
-              <span>可视强度</span>
-              <strong>{visualLabel}</strong>
-            </div>
+          <div className="flow-legend">
+            <span><i className="legend-wave" />节奏</span>
+            {companionLevel !== 'weak' && companionLevel !== 'off' ? <span><i className="legend-peak" />难读</span> : null}
+            {companionLevel !== 'weak' && companionLevel !== 'off' ? <span><i className="legend-note" />便签</span> : null}
+            {companionLevel === 'strong' ? <span><i className="legend-loop" />回看</span> : null}
           </div>
           <div className="assist-actions">
             {Object.keys(companionLabels).map((level) => (
-              <button className={companionLevel === level ? 'active' : ''} key={level} onClick={() => setCompanionLevel(level)}>
+              <button className={companionLevel === level ? 'active' : ''} key={level} onClick={() => setCompanionLevel(level)} title={companionDescriptions[level]}>
                 {companionLabels[level]}
               </button>
             ))}
@@ -98,13 +91,7 @@ export default function CompanionPanel({
             <strong>约 {Math.max(total - activePara - 1, 0)} 段</strong>
           </div>
         </div>
-        <div className="assist-actions">
-          <button className={isCurrentDifficult ? 'active warn' : ''} onClick={markDifficult}>
-            {isCurrentDifficult ? '取消难读' : '标记难读'}
-          </button>
-          <button>本段提示</button>
-        </div>
-        <div className="hint-box">本段建议慢读：先关注人物关系与情绪变化，遇到长句时可以按逗号自然停顿。</div>
+        <div className="hint-box">{isCurrentDifficult ? '本段已标记为需要回看。' : '段落旁工具可添加便签或回看标记。'}</div>
       </Card>
 
       <Card>
@@ -148,10 +135,14 @@ export default function CompanionPanel({
   )
 }
 
-function ReadingField({ level, progress, activePara, total, difficultMarks, revisitCount, stage }) {
+function ReadingField({ level, progress, activePara, total, difficultMarks, revisitCount, notes, stage }) {
   const safeTotal = Math.max(total, 1)
-  const currentX = `${Math.min(96, Math.max(4, ((activePara + 1) / safeTotal) * 100))}%`
+  const currentRatio = Math.min(0.96, Math.max(0.04, (activePara + 1) / safeTotal))
+  const currentX = `${currentRatio * 100}%`
   const progressWidth = `${Math.min(100, Math.max(0, progress))}%`
+  const noteParagraphs = [...new Set(notes.map((note) => note.paragraphIndex))]
+  const xForIndex = (index) => 8 + ((index + 1) / safeTotal) * 84
+  const lineOffset = Math.round(currentRatio * 10)
 
   if (level === 'off') {
     return (
@@ -164,33 +155,30 @@ function ReadingField({ level, progress, activePara, total, difficultMarks, revi
 
   return (
     <div className={`reading-field field-${level}`}>
-      <div className="field-line primary" />
-      {level !== 'weak' ? <div className="field-line secondary" /> : null}
-      {level === 'medium' || level === 'strong' ? <div className="field-line tertiary" /> : null}
+      <svg className="flow-svg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+        <path className="flow-wave primary" d={`M 4 ${50 - lineOffset / 2} C 18 ${36 + lineOffset}, 30 ${64 - lineOffset}, 44 50 S 70 ${38 + lineOffset}, 96 ${50 - lineOffset / 3}`} />
+        {level !== 'weak' ? <path className="flow-wave secondary" d={`M 4 ${38 + lineOffset / 4} C 20 ${28}, 32 ${50 + lineOffset}, 48 38 S 76 ${30}, 96 ${42 + lineOffset / 5}`} /> : null}
+        {level === 'strong' ? <path className="flow-wave tertiary" d={`M 4 ${66 - lineOffset / 5} C 22 ${76}, 36 ${52}, 54 66 S 78 ${78 - lineOffset}, 96 60`} /> : null}
+        {level === 'strong'
+          ? Object.entries(revisitCount).map(([index]) => {
+              const x = xForIndex(Number(index))
+              return <path className="flow-loop" key={`loop-${index}`} d={`M ${x - 4} 30 C ${x - 10} 18, ${x + 10} 18, ${x + 4} 30`} />
+            })
+          : null}
+      </svg>
       <div className="field-progress" style={{ width: progressWidth }} />
-      <div className="field-cursor" style={{ left: currentX }}>
-        <span>{activePara + 1}</span>
-      </div>
-      {level !== 'weak'
-        ? Array.from({ length: safeTotal }).map((_, index) => (
-            <span
-              className={`field-node ${index === activePara ? 'active' : ''} ${difficultMarks.includes(index) ? 'difficult' : ''}`}
-              key={index}
-              style={{ left: `${((index + 1) / safeTotal) * 100}%` }}
-            />
-          ))
+      <div className="field-progress-line" style={{ left: currentX }} />
+      <div className="field-cursor" style={{ left: currentX }} />
+      {level === 'medium' || level === 'strong'
+        ? difficultMarks.map((index) => <span className="field-peak" key={`peak-${index}`} style={{ left: `${xForIndex(index)}%` }} />)
+        : null}
+      {level === 'medium' || level === 'strong'
+        ? noteParagraphs.map((index) => <span className="field-note" key={`note-${index}`} style={{ left: `${xForIndex(index)}%` }} />)
         : null}
       {level === 'strong'
-        ? difficultMarks.map((index) => <span className="field-peak" key={`peak-${index}`} style={{ left: `${((index + 1) / safeTotal) * 100}%` }} />)
+        ? Object.entries(revisitCount).map(([index]) => <span className="field-loop-dot" key={`loop-dot-${index}`} style={{ left: `${xForIndex(Number(index))}%` }} />)
         : null}
-      {level === 'strong'
-        ? Object.entries(revisitCount).map(([index, count]) => (
-            <span className="field-loop" key={`loop-${index}`} style={{ left: `${((Number(index) + 1) / safeTotal) * 100}%` }}>
-              {count}
-            </span>
-          ))
-        : null}
-      <div className="field-caption">{level === 'weak' ? '细流线 · 当前进度点' : level === 'medium' ? '多线跟随 · 当前段落节点' : '强反馈 · 难读峰值与回看回环'}</div>
+      <div className="field-caption">{level === 'weak' ? '轻陪伴' : level === 'medium' ? '标准陪伴' : '强陪伴'}</div>
     </div>
   )
 }

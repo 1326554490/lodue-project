@@ -14,7 +14,12 @@ export function useTimer(initialSeconds = 0) {
     seconds,
     running,
     setSeconds,
-    reset: () => setSeconds(0),
+    reset: () => {
+      setRunning(false)
+      setSeconds(0)
+    },
+    start: () => setRunning(true),
+    pause: () => setRunning(false),
     toggle: () => setRunning((value) => !value),
     stop: () => setRunning(false),
   }

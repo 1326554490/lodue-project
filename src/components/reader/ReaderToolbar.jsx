@@ -1,6 +1,6 @@
-import { Highlighter, Minus, Plus, Ruler, StickyNote } from 'lucide-react'
+import { Highlighter, Minus, Plus, Ruler } from 'lucide-react'
 
-export default function ReaderToolbar({ modeLabel, settings, updateSetting, toggleSetting, onAddNote }) {
+export default function ReaderToolbar({ modeLabel, settings, updateSetting, toggleSetting }) {
   return (
     <div className="reader-tools">
       <div className="flex flex-wrap items-center gap-3">
@@ -19,9 +19,6 @@ export default function ReaderToolbar({ modeLabel, settings, updateSetting, togg
         </button>
         <button className={`small-tool ${settings.ruler ? 'active' : ''}`} onClick={() => toggleSetting('ruler')}>
           <Ruler size={14} /> 阅读尺
-        </button>
-        <button className="small-tool" onClick={onAddNote}>
-          <StickyNote size={14} /> 便签
         </button>
       </div>
     </div>

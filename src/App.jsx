@@ -19,7 +19,7 @@ function App() {
   const [page, setPage] = useState('home')
   const [selectedText, setSelectedText] = useState(sampleTexts[0])
   const [mode, setMode] = useState('gentle')
-  const [testState, setTestState] = useState({ step: 1, problem: '', feeling: '', seconds: 42 })
+  const [testState, setTestState] = useState({ step: 1, selfCheck: [], feedback: [], seconds: 0, baselineStarted: false })
   const [community, setCommunity] = useState(initialCommunity)
   const { settings, updateSetting, applyModePreset, toggleSetting } = useReadingSettings(modePresets.gentle)
 

@@ -48,7 +48,7 @@ export function ReadingSessionProvider({ children }) {
   const [readingSession, setReadingSession] = useState(initialReadingSession)
   const revisitCooldownRef = useRef({})
 
-  const startSession = useCallback(({ textId, paragraphCount, mode = 'gentle', theme = 'light' }) => {
+  const startSession = useCallback(({ textId, paragraphCount, mode = 'gentle', theme = 'light', companionLevel }) => {
     setReadingSession((current) => {
       if (current.textId === textId) {
         return {
@@ -56,6 +56,7 @@ export function ReadingSessionProvider({ children }) {
           paragraphCount,
           mode,
           theme,
+          companionLevel: companionLevel || current.companionLevel,
           endTime: null,
           maxReachedParagraph: Math.min(current.maxReachedParagraph, Math.max(paragraphCount - 1, 0)),
           progress: calculateProgress(Math.min(current.maxReachedParagraph, Math.max(paragraphCount - 1, 0)), paragraphCount),
@@ -71,7 +72,7 @@ export function ReadingSessionProvider({ children }) {
         paragraphCount,
         mode,
         theme,
-        companionLevel: mode === 'focus' ? 'medium' : mode === 'clear' ? 'medium' : 'weak',
+        companionLevel: companionLevel || (mode === 'focus' ? 'medium' : 'weak'),
         startTime: Date.now(),
         maxReachedParagraph: firstParagraph,
         currentParagraph: firstParagraph,
@@ -171,6 +172,25 @@ export function ReadingSessionProvider({ children }) {
     }))
   }, [])
 
+  const updateNote = useCallback((noteId, text) => {
+    const noteText = text?.trim()
+    if (!noteId || !noteText) return
+
+    setReadingSession((current) => ({
+      ...current,
+      notes: current.notes.map((note) => (note.id === noteId ? { ...note, text: noteText, updatedAt: Date.now() } : note)),
+    }))
+  }, [])
+
+  const deleteNote = useCallback((noteId) => {
+    if (!noteId) return
+
+    setReadingSession((current) => ({
+      ...current,
+      notes: current.notes.filter((note) => note.id !== noteId),
+    }))
+  }, [])
+
   const setCompanionLevel = useCallback((level) => {
     if (!['off', 'weak', 'medium', 'strong'].includes(level)) return
 
@@ -221,6 +241,8 @@ export function ReadingSessionProvider({ children }) {
       addDwellTime,
       markDifficult,
       addNote,
+      updateNote,
+      deleteNote,
       setCompanionLevel,
       finishSession,
       getSessionSummary,
@@ -228,6 +250,8 @@ export function ReadingSessionProvider({ children }) {
     [
       addDwellTime,
       addNote,
+      updateNote,
+      deleteNote,
       finishSession,
       getSessionSummary,
       markDifficult,

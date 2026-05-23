@@ -9,7 +9,7 @@ import { useReadingSession } from '../hooks/useReadingSession.js'
 
 const keywords = ['图书馆', '阳光', '旧书', '批注', '交谈', '慢读', '陪伴', '心事']
 
-export default function ReaderPage({ selectedText, mode, settings, updateSetting, toggleSetting, chooseMode, goTo }) {
+export default function ReaderPage({ selectedText, mode, settings, updateSetting, toggleSetting, chooseMode, goTo, testState }) {
   const {
     readingSession,
     startSession,
@@ -17,6 +17,8 @@ export default function ReaderPage({ selectedText, mode, settings, updateSetting
     addDwellTime,
     markDifficult,
     addNote,
+    updateNote,
+    deleteNote,
     setCompanionLevel,
     finishSession,
   } = useReadingSession()
@@ -28,8 +30,7 @@ export default function ReaderPage({ selectedText, mode, settings, updateSetting
     .filter(Boolean);
 }, [selectedText?.content]);
   const dwellRef = useRef({ paragraphIndex: 0, enteredAt: 0 })
-  const [noteDraft, setNoteDraft] = useState('')
-  const [isNoteOpen, setIsNoteOpen] = useState(false)
+  const [toast, setToast] = useState('')
   const currentParagraph = Math.max(readingSession.currentParagraph, 0)
   const modeCopy = {
     gentle: '低压力阅读中，非当前段落会保持柔和可读。',
@@ -43,9 +44,10 @@ export default function ReaderPage({ selectedText, mode, settings, updateSetting
       paragraphCount: paragraphs.length,
       mode,
       theme: settings.bg === 'dark' ? 'dark' : 'light',
+      companionLevel: testState?.profile?.companionLevel,
     })
     dwellRef.current = { paragraphIndex: 0, enteredAt: Date.now() }
-  }, [mode, paragraphs.length, selectedText.id, settings.bg, startSession])
+  }, [mode, paragraphs.length, selectedText.id, settings.bg, startSession, testState?.profile?.companionLevel])
 
   useEffect(() => {
     const now = Date.now()
@@ -55,16 +57,49 @@ export default function ReaderPage({ selectedText, mode, settings, updateSetting
     dwellRef.current = { paragraphIndex: readingSession.currentParagraph, enteredAt: now }
   }, [addDwellTime, readingSession.currentParagraph])
 
-  const handleAddNote = useCallback(() => {
-    setNoteDraft('')
-    setIsNoteOpen(true)
-  }, [])
+  useEffect(() => {
+    if (testState?.profile?.companionLevel) return
+    setCompanionLevel(mode === 'focus' ? 'medium' : 'weak')
+  }, [mode, setCompanionLevel, testState?.profile?.companionLevel])
 
-  const handleSaveNote = () => {
-    addNote(currentParagraph, noteDraft)
-    setNoteDraft('')
-    setIsNoteOpen(false)
-  }
+  const handleAddNote = useCallback(
+    (paragraphIndex, text) => {
+      addNote(paragraphIndex, text)
+      setToast(`已贴到第 ${paragraphIndex + 1} 段`)
+    },
+    [addNote],
+  )
+
+  const handleUpdateNote = useCallback(
+    (noteId, text) => {
+      updateNote(noteId, text)
+      setToast('便签已更新')
+    },
+    [updateNote],
+  )
+
+  const handleDeleteNote = useCallback(
+    (noteId) => {
+      deleteNote(noteId)
+      setToast('便签已移除')
+    },
+    [deleteNote],
+  )
+
+  const handleMarkDifficult = useCallback(
+    (paragraphIndex = currentParagraph) => {
+      const willCancel = readingSession.difficultMarks.includes(paragraphIndex)
+      markDifficult(paragraphIndex)
+      setToast(willCancel ? `已取消第 ${paragraphIndex + 1} 段回看标记` : `第 ${paragraphIndex + 1} 段已标为需要回看`)
+    },
+    [currentParagraph, markDifficult, readingSession.difficultMarks],
+  )
+
+  useEffect(() => {
+    if (!toast) return undefined
+    const id = window.setTimeout(() => setToast(''), 1800)
+    return () => window.clearTimeout(id)
+  }, [toast])
 
   const handleFinish = () => {
     const now = Date.now()
@@ -93,22 +128,7 @@ export default function ReaderPage({ selectedText, mode, settings, updateSetting
 
       <div className="reader-layout">
         <Card className="reader-card">
-          <ReaderToolbar modeLabel={modePresets[mode]?.label || modePresets.gentle.label} settings={settings} updateSetting={updateSetting} toggleSetting={toggleSetting} onAddNote={handleAddNote} />
-          {isNoteOpen ? (
-            <div className="note-editor">
-              <div>
-                <strong>给第 {currentParagraph + 1} 段添加便签</strong>
-                <div className="small muted">保存后会同步到右侧列表，并在段落旁显示角标。</div>
-              </div>
-              <textarea value={noteDraft} onChange={(event) => setNoteDraft(event.target.value)} placeholder="写下这段的疑问、共鸣或需要回看的理由..." autoFocus />
-              <div className="note-editor-actions">
-                <button onClick={() => setIsNoteOpen(false)}>取消</button>
-                <button className="primary" onClick={handleSaveNote} disabled={!noteDraft.trim()}>
-                  保存便签
-                </button>
-              </div>
-            </div>
-          ) : null}
+          <ReaderToolbar modeLabel={modePresets[mode]?.label || modePresets.gentle.label} settings={settings} updateSetting={updateSetting} toggleSetting={toggleSetting} />
           <ReaderPaper
             text={selectedText}
             settings={settings}
@@ -119,6 +139,10 @@ export default function ReaderPage({ selectedText, mode, settings, updateSetting
             updateSetting={updateSetting}
             difficultMarks={readingSession.difficultMarks}
             notes={readingSession.notes}
+            addNote={handleAddNote}
+            updateNote={handleUpdateNote}
+            deleteNote={handleDeleteNote}
+            markDifficult={handleMarkDifficult}
           />
         </Card>
 
@@ -127,7 +151,7 @@ export default function ReaderPage({ selectedText, mode, settings, updateSetting
           activePara={currentParagraph}
           total={paragraphs.length}
           notes={readingSession.notes}
-          markDifficult={() => markDifficult(currentParagraph)}
+          markDifficult={handleMarkDifficult}
           difficultyCount={readingSession.difficultMarks.length}
           difficultMarks={readingSession.difficultMarks}
           revisitCount={readingSession.revisitCount}
@@ -138,11 +162,13 @@ export default function ReaderPage({ selectedText, mode, settings, updateSetting
         />
       </div>
 
+      {toast ? <div className="reader-toast">{toast}</div> : null}
+
       {settings.keywords ? (
         <Card className="keyword-card">
           <div className="row-title compact">关键词浮岛</div>
           <div className="keyword-cloud">
-            {keywords.map((word, index) => (
+            {(selectedText.keywords || keywords).map((word, index) => (
               <span className={`tag ${index % 3 === 0 ? 'orange' : index % 3 === 1 ? 'purple' : 'teal'}`} key={word}>
                 {word}
               </span>

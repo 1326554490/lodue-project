@@ -1,69 +1,156 @@
-import { useEffect, useRef } from 'react'
-export default function ReaderPaper({ text, settings, mode, activePara, onActiveParaChange, chooseMode, updateSetting, difficultMarks, notes }) {
-  const paragraphs = text.content.split('\n').filter(Boolean)
+import { AlertCircle, PenLine, StickyNote, Trash2, X } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+
+export default function ReaderPaper({
+  text,
+  settings,
+  mode,
+  activePara,
+  onActiveParaChange,
+  chooseMode,
+  updateSetting,
+  difficultMarks,
+  notes,
+  addNote,
+  updateNote,
+  deleteNote,
+  markDifficult,
+}) {
+  const paragraphs = useMemo(() => text.content.split(/\n+/).map((paragraph) => paragraph.trim()).filter(Boolean), [text.content])
   const paragraphRefs = useRef([])
+  const paperRef = useRef(null)
+  const hoverRef = useRef(null)
+  const [rulerY, setRulerY] = useState(132)
+  const [openNoteId, setOpenNoteId] = useState(null)
+  const [openNoteParagraph, setOpenNoteParagraph] = useState(null)
+  const [noteDraft, setNoteDraft] = useState('')
   const notesByParagraph = notes.reduce((map, note) => {
-    map[note.paragraphIndex] = (map[note.paragraphIndex] || 0) + 1
+    map[note.paragraphIndex] = [...(map[note.paragraphIndex] || []), note]
     return map
   }, {})
+  const openNote = notes.find((note) => note.id === openNoteId)
+  const isAddingNote = openNoteId === 'new'
 
   useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const visible = entries
-          .filter((entry) => entry.isIntersecting)
-          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0]
+    const updateFromAnchor = () => {
+      if (hoverRef.current != null) return
+      const anchorY = window.innerHeight * 0.4
+      let closestIndex = activePara
+      let closestDistance = Number.POSITIVE_INFINITY
 
-        if (visible) {
-          onActiveParaChange(Number(visible.target.dataset.index))
+      paragraphRefs.current.forEach((node, index) => {
+        if (!node) return
+        const rect = node.getBoundingClientRect()
+        const middle = rect.top + rect.height / 2
+        const distance = Math.abs(middle - anchorY)
+        if (distance < closestDistance) {
+          closestDistance = distance
+          closestIndex = index
         }
-      },
-      { rootMargin: '-20% 0px -45% 0px', threshold: [0.35, 0.55, 0.75] },
-    )
+      })
 
-    paragraphRefs.current.filter(Boolean).forEach((node) => observer.observe(node))
+      if (closestIndex !== activePara) onActiveParaChange(closestIndex)
+    }
 
-    return () => observer.disconnect()
-  }, [onActiveParaChange, paragraphs.length])
+    updateFromAnchor()
+    window.addEventListener('scroll', updateFromAnchor, { passive: true })
+    window.addEventListener('resize', updateFromAnchor)
+    return () => {
+      window.removeEventListener('scroll', updateFromAnchor)
+      window.removeEventListener('resize', updateFromAnchor)
+    }
+  }, [activePara, onActiveParaChange, paragraphs.length])
+
+  useEffect(() => {
+    const node = paragraphRefs.current[activePara]
+    const paper = paperRef.current
+    if (!node || !paper || hoverRef.current != null) return
+    const nodeRect = node.getBoundingClientRect()
+    const paperRect = paper.getBoundingClientRect()
+    setRulerY(nodeRect.top - paperRect.top + nodeRect.height / 2)
+  }, [activePara])
+
+  const handleMouseMove = (event) => {
+    if (!paperRef.current || !settings.ruler) return
+    const rect = paperRef.current.getBoundingClientRect()
+    setRulerY(event.clientY - rect.top)
+  }
+
+  const handleLeavePaper = () => {
+    hoverRef.current = null
+    const node = paragraphRefs.current[activePara]
+    const paper = paperRef.current
+    if (!node || !paper) return
+    const nodeRect = node.getBoundingClientRect()
+    const paperRect = paper.getBoundingClientRect()
+    setRulerY(nodeRect.top - paperRect.top + nodeRect.height / 2)
+  }
+
+  const openNewNote = (paragraphIndex) => {
+    setOpenNoteId('new')
+    setOpenNoteParagraph(paragraphIndex)
+    setNoteDraft('')
+  }
+
+  const openExistingNote = (note) => {
+    setOpenNoteId(note.id)
+    setOpenNoteParagraph(note.paragraphIndex)
+    setNoteDraft(note.text)
+  }
+
+  const closeNote = () => {
+    setOpenNoteId(null)
+    setOpenNoteParagraph(null)
+    setNoteDraft('')
+  }
+
+  const handleSaveNote = () => {
+    if (!noteDraft.trim()) return
+    if (isAddingNote) {
+      addNote(openNoteParagraph, noteDraft)
+    } else if (openNote) {
+      updateNote(openNote.id, noteDraft)
+    }
+    closeNote()
+  }
+
+  const handleDeleteNote = () => {
+    if (!openNote) return
+    deleteNote(openNote.id)
+    closeNote()
+  }
 
   return (
-    <div className={`reader-paper paper-${settings.bg} reader-mode-${mode}`}>
+    <div
+      className={`reader-paper paper-${settings.bg} reader-mode-${mode}`}
+      ref={paperRef}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleLeavePaper}
+    >
       <div className="reader-rail">
         <div className="rail-label">字号</div>
-        <button className="rail-btn" onClick={() => updateSetting('font', Math.min(23, settings.font + 1))}>
-          A+
-        </button>
-        <button className="rail-btn" onClick={() => updateSetting('font', Math.max(15, settings.font - 1))}>
-          A-
-        </button>
+        <button className="rail-btn" onClick={() => updateSetting('font', Math.min(24, settings.font + 1))}>A+</button>
+        <button className="rail-btn" onClick={() => updateSetting('font', Math.max(15, settings.font - 1))}>A-</button>
         <div className="rail-divider" />
         <div className="rail-label">模式</div>
-        <button className="rail-btn" onClick={() => chooseMode('gentle')}>
-          舒
-        </button>
-        <button className="rail-btn" onClick={() => chooseMode('focus')}>
-          专
-        </button>
-        <button className="rail-btn" onClick={() => chooseMode('clear')}>
-          清
-        </button>
+        <button className="rail-btn" onClick={() => chooseMode('gentle')}>舒</button>
+        <button className="rail-btn" onClick={() => chooseMode('focus')}>专</button>
+        <button className="rail-btn" onClick={() => chooseMode('clear')}>清</button>
         <div className="rail-divider" />
         <div className="rail-label">背景</div>
-        <button className="rail-btn" onClick={() => updateSetting('bg', 'mist')}>
-          浅
-        </button>
-        <button className="rail-btn" onClick={() => updateSetting('bg', 'dark')}>
-          深
-        </button>
+        <button className="rail-btn" onClick={() => updateSetting('bg', 'mist')}>浅</button>
+        <button className="rail-btn" onClick={() => updateSetting('bg', 'dark')}>深</button>
       </div>
 
-      {settings.ruler ? <div className="reading-ruler show" style={{ top: 132 + activePara * 132 }} /> : null}
+      {settings.ruler ? <div className={`reading-ruler ruler-${mode}`} style={{ top: rulerY }} /> : null}
 
       <div className="reader-content">
         {paragraphs.map((paragraph, index) => {
           const isActive = activePara === index
           const isDifficult = difficultMarks.includes(index)
-          const noteCount = notesByParagraph[index] || 0
+          const paragraphNotes = notesByParagraph[index] || []
+
+          const isNoteOpenForParagraph = openNoteParagraph === index && (isAddingNote || openNote?.paragraphIndex === index)
 
           return (
             <p
@@ -72,7 +159,11 @@ export default function ReaderPaper({ text, settings, mode, activePara, onActive
                 paragraphRefs.current[index] = node
               }}
               data-index={index}
-              className={`para ${settings.focus ? (isActive ? 'active' : 'dimmed') : 'no-focus'} ${isDifficult ? 'difficult' : ''} ${noteCount ? 'has-note' : ''}`}
+              className={`para ${settings.focus ? (isActive ? 'active' : 'dimmed') : 'no-focus'} ${isDifficult ? 'difficult' : ''} ${paragraphNotes.length ? 'has-note' : ''}`}
+              onMouseEnter={() => {
+                hoverRef.current = index
+                onActiveParaChange(index)
+              }}
               onClick={() => onActiveParaChange(index)}
               style={{
                 fontSize: `${settings.font}px`,
@@ -83,10 +174,60 @@ export default function ReaderPaper({ text, settings, mode, activePara, onActive
               {mode === 'clear' ? <span className="para-index">{String(index + 1).padStart(2, '0')}</span> : null}
               {mode === 'focus' && isActive ? <span className="focus-bar" /> : null}
               <span className="para-text">{paragraph}</span>
-              <span className="para-badges">
-                {isDifficult ? <span className="para-badge difficult-badge">难读</span> : null}
-                {noteCount ? <span className="para-badge note-badge">便签 {noteCount}</span> : null}
+              <span className="para-tools" aria-label={`第 ${index + 1} 段工具`}>
+                <button
+                  type="button"
+                  className="para-tool"
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    paragraphNotes.length ? openExistingNote(paragraphNotes[0]) : openNewNote(index)
+                  }}
+                  title={paragraphNotes.length ? '查看便签' : '添加便签'}
+                  aria-label={paragraphNotes.length ? `查看第 ${index + 1} 段便签` : `给第 ${index + 1} 段添加便签`}
+                >
+                  <StickyNote size={15} />
+                </button>
+                <button
+                  type="button"
+                  className={`para-tool ${isDifficult ? 'active-warn' : ''}`}
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    markDifficult(index)
+                  }}
+                  title={isDifficult ? '取消回看' : '需要回看'}
+                  aria-label={isDifficult ? `取消第 ${index + 1} 段回看标记` : `标记第 ${index + 1} 段需要回看`}
+                >
+                  <AlertCircle size={15} />
+                </button>
               </span>
+              {isDifficult ? <span className="difficult-tip">需要回看</span> : null}
+              {paragraphNotes.length ? (
+                <button
+                  className="note-pin"
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    openExistingNote(paragraphNotes[0])
+                  }}
+                  aria-label={`查看第 ${index + 1} 段便签`}
+                  title="查看便签"
+                >
+                  <PenLine size={15} />
+                  {paragraphNotes.length > 1 ? <span>{paragraphNotes.length}</span> : null}
+                </button>
+              ) : null}
+              {isNoteOpenForParagraph ? (
+                <span className="sticky-popover" onClick={(event) => event.stopPropagation()}>
+                  <span className="sticky-corner" />
+                  <span className="sticky-pin" />
+                  <strong>{isAddingNote ? '新便签' : `第 ${index + 1} 段`}</strong>
+                  <textarea value={noteDraft} onChange={(event) => setNoteDraft(event.target.value)} placeholder="疑问、共鸣或回看理由..." autoFocus />
+                  <span className="sticky-actions">
+                    <button onClick={closeNote} title="收起"><X size={13} /></button>
+                    {!isAddingNote ? <button onClick={handleDeleteNote} title="删除"><Trash2 size={13} /></button> : null}
+                    <button className="primary" onClick={handleSaveNote} disabled={!noteDraft.trim()}>保存</button>
+                  </span>
+                </span>
+              ) : null}
             </p>
           )
         })}
