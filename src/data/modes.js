@@ -1,0 +1,47 @@
+export const modePresets = {
+  gentle: {
+    label: '舒缓阅读模式',
+    desc: '适合容易疲劳、阅读速度较慢、希望降低压力的阅读状态。',
+    icon: 'Leaf',
+    font: 18,
+    line: 1.95,
+    letter: 0.5,
+    bg: 'mist',
+    focus: true,
+    ruler: false,
+    keywords: true,
+    tags: ['大字号', '宽行距', '低刺激背景', '段落高亮'],
+  },
+  focus: {
+    label: '专注阅读模式',
+    desc: '适合容易走神、需要把注意力稳定在当前段落的阅读状态。',
+    icon: 'Brain',
+    font: 17,
+    line: 1.85,
+    letter: 0.2,
+    bg: 'cream',
+    focus: true,
+    ruler: true,
+    keywords: true,
+    tags: ['当前段聚焦', '弱化干扰', '阅读尺', '节奏提醒'],
+  },
+  clear: {
+    label: '清晰阅读模式',
+    desc: '适合容易跳行、串行，或需要更清晰文字间隔的阅读状态。',
+    icon: 'ScanText',
+    font: 18,
+    line: 2.05,
+    letter: 1.2,
+    bg: 'cream',
+    focus: true,
+    ruler: true,
+    keywords: false,
+    tags: ['字间距增加', '段落分块', '清晰对比', '阅读定位'],
+  },
+}
+
+export const bgOptions = [
+  { key: 'mist', label: '浅色模式', color: '#f5f9f9' },
+  { key: 'cream', label: '纸张模式', color: '#fbf7ef' },
+  { key: 'dark', label: '深色模式', color: '#29424A' },
+]

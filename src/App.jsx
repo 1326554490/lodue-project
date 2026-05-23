@@ -1,121 +1,93 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import { useMemo, useState } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
+import AppShell from './components/common/AppShell.jsx'
+import HomePage from './pages/HomePage.jsx'
+import TestPage from './pages/TestPage.jsx'
+import ModePage from './pages/ModePage.jsx'
+import ReaderPage from './pages/ReaderPage.jsx'
+import FeedbackPage from './pages/FeedbackPage.jsx'
+import CommunityPage from './pages/CommunityPage.jsx'
+import { sampleTexts } from './data/sampleTexts.js'
+import { modePresets } from './data/modes.js'
+import { initialCommunity } from './data/community.js'
+import { useReadingSettings } from './hooks/useReadingSettings.js'
+
+const pages = ['home', 'test', 'mode', 'reader', 'feedback', 'community']
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [page, setPage] = useState('home')
+  const [selectedText, setSelectedText] = useState(sampleTexts[0])
+  const [mode, setMode] = useState('gentle')
+  const [testState, setTestState] = useState({ step: 1, problem: '', feeling: '', seconds: 42 })
+  const [community, setCommunity] = useState(initialCommunity)
+  const [notes, setNotes] = useState([])
+  const { settings, updateSetting, applyModePreset, toggleSetting } = useReadingSettings(modePresets.gentle)
+
+  const isDark = settings.bg === 'dark'
+
+  const pageProps = useMemo(
+    () => ({
+      goTo: setPage,
+      selectedText,
+      setSelectedText,
+      mode,
+      setMode,
+      settings,
+      updateSetting,
+      toggleSetting,
+      applyModePreset,
+      testState,
+      setTestState,
+      community,
+      setCommunity,
+      notes,
+      setNotes,
+    }),
+    [applyModePreset, community, mode, notes, selectedText, settings, testState, toggleSetting, updateSetting],
+  )
+
+  const chooseMode = (key) => {
+    setMode(key)
+    applyModePreset(modePresets[key])
+  }
+
+  const goBack = () => {
+    const current = pages.indexOf(page)
+    setPage(pages[Math.max(0, current - 1)])
+  }
+
+  const renderPage = () => {
+    switch (page) {
+      case 'test':
+        return <TestPage {...pageProps} chooseMode={chooseMode} />
+      case 'mode':
+        return <ModePage {...pageProps} chooseMode={chooseMode} />
+      case 'reader':
+        return <ReaderPage {...pageProps} chooseMode={chooseMode} />
+      case 'feedback':
+        return <FeedbackPage {...pageProps} />
+      case 'community':
+        return <CommunityPage {...pageProps} />
+      case 'home':
+      default:
+        return <HomePage {...pageProps} />
+    }
+  }
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
+    <AppShell page={page} goTo={setPage} goBack={goBack} isDark={isDark}>
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={page}
+          initial={{ opacity: 0, x: 24, filter: 'blur(4px)' }}
+          animate={{ opacity: 1, x: 0, filter: 'blur(0px)' }}
+          exit={{ opacity: 0, x: -18, filter: 'blur(3px)' }}
+          transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
         >
-          Count is {count}
-        </button>
-      </section>
-
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
+          {renderPage()}
+        </motion.div>
+      </AnimatePresence>
+    </AppShell>
   )
 }
 
