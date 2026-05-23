@@ -1,9 +1,11 @@
 import { useEffect, useRef } from 'react'
-import { modePresets } from '../../data/modes.js'
-
-export default function ReaderPaper({ text, settings, activePara, onActiveParaChange, chooseMode, updateSetting }) {
+export default function ReaderPaper({ text, settings, mode, activePara, onActiveParaChange, chooseMode, updateSetting, difficultMarks, notes }) {
   const paragraphs = text.content.split('\n').filter(Boolean)
   const paragraphRefs = useRef([])
+  const notesByParagraph = notes.reduce((map, note) => {
+    map[note.paragraphIndex] = (map[note.paragraphIndex] || 0) + 1
+    return map
+  }, {})
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -25,7 +27,7 @@ export default function ReaderPaper({ text, settings, activePara, onActiveParaCh
   }, [onActiveParaChange, paragraphs.length])
 
   return (
-    <div className={`reader-paper paper-${settings.bg}`}>
+    <div className={`reader-paper paper-${settings.bg} reader-mode-${mode}`}>
       <div className="reader-rail">
         <div className="rail-label">字号</div>
         <button className="rail-btn" onClick={() => updateSetting('font', Math.min(23, settings.font + 1))}>
@@ -55,32 +57,40 @@ export default function ReaderPaper({ text, settings, activePara, onActiveParaCh
         </button>
       </div>
 
-      {settings.ruler ? <div className="reading-ruler show" style={{ top: 144 + activePara * 124 }} /> : null}
+      {settings.ruler ? <div className="reading-ruler show" style={{ top: 132 + activePara * 132 }} /> : null}
 
       <div className="reader-content">
-        {paragraphs.map((paragraph, index) => (
-          <p
-            key={`${paragraph.slice(0, 12)}-${index}`}
-            ref={(node) => {
-              paragraphRefs.current[index] = node
-            }}
-            data-index={index}
-            className={`para ${settings.focus ? (activePara === index ? 'active' : '') : 'no-focus'}`}
-            onClick={() => onActiveParaChange(index)}
-            style={{
-              fontSize: `${settings.font}px`,
-              lineHeight: settings.line,
-              letterSpacing: `${settings.letter}px`,
-            }}
-          >
-            {paragraph}
-          </p>
-        ))}
+        {paragraphs.map((paragraph, index) => {
+          const isActive = activePara === index
+          const isDifficult = difficultMarks.includes(index)
+          const noteCount = notesByParagraph[index] || 0
+
+          return (
+            <p
+              key={`${paragraph.slice(0, 12)}-${index}`}
+              ref={(node) => {
+                paragraphRefs.current[index] = node
+              }}
+              data-index={index}
+              className={`para ${settings.focus ? (isActive ? 'active' : 'dimmed') : 'no-focus'} ${isDifficult ? 'difficult' : ''} ${noteCount ? 'has-note' : ''}`}
+              onClick={() => onActiveParaChange(index)}
+              style={{
+                fontSize: `${settings.font}px`,
+                lineHeight: settings.line,
+                letterSpacing: `${settings.letter}px`,
+              }}
+            >
+              {mode === 'clear' ? <span className="para-index">{String(index + 1).padStart(2, '0')}</span> : null}
+              {mode === 'focus' && isActive ? <span className="focus-bar" /> : null}
+              <span className="para-text">{paragraph}</span>
+              <span className="para-badges">
+                {isDifficult ? <span className="para-badge difficult-badge">难读</span> : null}
+                {noteCount ? <span className="para-badge note-badge">便签 {noteCount}</span> : null}
+              </span>
+            </p>
+          )
+        })}
       </div>
     </div>
   )
-}
-
-export function getModeLabel(mode) {
-  return modePresets[mode]?.label || modePresets.gentle.label
 }

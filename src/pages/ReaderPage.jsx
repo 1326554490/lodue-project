@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Button from '../components/common/Button.jsx'
 import Card from '../components/common/Card.jsx'
 import CompanionPanel from '../components/reader/CompanionPanel.jsx'
-import ReaderPaper, { getModeLabel } from '../components/reader/ReaderPaper.jsx'
+import ReaderPaper from '../components/reader/ReaderPaper.jsx'
 import ReaderToolbar from '../components/reader/ReaderToolbar.jsx'
 import { modePresets } from '../data/modes.js'
 import { useReadingSession } from '../hooks/useReadingSession.js'
@@ -20,8 +20,22 @@ export default function ReaderPage({ selectedText, mode, settings, updateSetting
     setCompanionLevel,
     finishSession,
   } = useReadingSession()
-  const paragraphs = useMemo(() => selectedText.content.split('\n').filter(Boolean), [selectedText.content])
-  const dwellRef = useRef({ paragraphIndex: 0, enteredAt: Date.now() })
+  const paragraphs = useMemo(() => {
+  const content = selectedText?.content || "";
+  return content
+    .split(/\n+/)
+    .map((paragraph) => paragraph.trim())
+    .filter(Boolean);
+}, [selectedText?.content]);
+  const dwellRef = useRef({ paragraphIndex: 0, enteredAt: 0 })
+  const [noteDraft, setNoteDraft] = useState('')
+  const [isNoteOpen, setIsNoteOpen] = useState(false)
+  const currentParagraph = Math.max(readingSession.currentParagraph, 0)
+  const modeCopy = {
+    gentle: '低压力阅读中，非当前段落会保持柔和可读。',
+    focus: '专注跟随已开启，阅读尺会贴近当前段落。',
+    clear: '清晰分段中，段落编号和边界会帮助定位。',
+  }
 
   useEffect(() => {
     startSession({
@@ -31,7 +45,7 @@ export default function ReaderPage({ selectedText, mode, settings, updateSetting
       theme: settings.bg === 'dark' ? 'dark' : 'light',
     })
     dwellRef.current = { paragraphIndex: 0, enteredAt: Date.now() }
-  }, [paragraphs.length, selectedText.id, startSession])
+  }, [mode, paragraphs.length, selectedText.id, settings.bg, startSession])
 
   useEffect(() => {
     const now = Date.now()
@@ -42,9 +56,15 @@ export default function ReaderPage({ selectedText, mode, settings, updateSetting
   }, [addDwellTime, readingSession.currentParagraph])
 
   const handleAddNote = useCallback(() => {
-    const paragraph = readingSession.currentParagraph + 1
-    addNote(readingSession.currentParagraph, `第 ${paragraph} 段需要回看。`)
-  }, [addNote, readingSession.currentParagraph])
+    setNoteDraft('')
+    setIsNoteOpen(true)
+  }, [])
+
+  const handleSaveNote = () => {
+    addNote(currentParagraph, noteDraft)
+    setNoteDraft('')
+    setIsNoteOpen(false)
+  }
 
   const handleFinish = () => {
     const now = Date.now()
@@ -61,7 +81,7 @@ export default function ReaderPage({ selectedText, mode, settings, updateSetting
         <div>
           <div className="eyebrow">沉浸阅读空间</div>
           <h1>{selectedText.title}</h1>
-          <p className="muted">当前模式：{modePresets[mode].label}。你可以随时调整阅读辅助，也可以把难读段落标记下来。</p>
+          <p className="muted">当前模式：{modePresets[mode].label}。{modeCopy[mode]}</p>
         </div>
         <div className="flex flex-wrap gap-3">
           <Button variant="secondary" onClick={() => goTo('mode')}>
@@ -73,26 +93,48 @@ export default function ReaderPage({ selectedText, mode, settings, updateSetting
 
       <div className="reader-layout">
         <Card className="reader-card">
-          <ReaderToolbar modeLabel={getModeLabel(mode)} settings={settings} updateSetting={updateSetting} toggleSetting={toggleSetting} onAddNote={handleAddNote} />
+          <ReaderToolbar modeLabel={modePresets[mode]?.label || modePresets.gentle.label} settings={settings} updateSetting={updateSetting} toggleSetting={toggleSetting} onAddNote={handleAddNote} />
+          {isNoteOpen ? (
+            <div className="note-editor">
+              <div>
+                <strong>给第 {currentParagraph + 1} 段添加便签</strong>
+                <div className="small muted">保存后会同步到右侧列表，并在段落旁显示角标。</div>
+              </div>
+              <textarea value={noteDraft} onChange={(event) => setNoteDraft(event.target.value)} placeholder="写下这段的疑问、共鸣或需要回看的理由..." autoFocus />
+              <div className="note-editor-actions">
+                <button onClick={() => setIsNoteOpen(false)}>取消</button>
+                <button className="primary" onClick={handleSaveNote} disabled={!noteDraft.trim()}>
+                  保存便签
+                </button>
+              </div>
+            </div>
+          ) : null}
           <ReaderPaper
             text={selectedText}
             settings={settings}
-            activePara={readingSession.currentParagraph}
+            mode={mode}
+            activePara={currentParagraph}
             onActiveParaChange={updateCurrentParagraph}
             chooseMode={chooseMode}
             updateSetting={updateSetting}
+            difficultMarks={readingSession.difficultMarks}
+            notes={readingSession.notes}
           />
         </Card>
 
         <CompanionPanel
           progress={readingSession.progress}
-          activePara={readingSession.currentParagraph}
+          activePara={currentParagraph}
           total={paragraphs.length}
           notes={readingSession.notes}
-          markDifficult={() => markDifficult(readingSession.currentParagraph)}
+          markDifficult={() => markDifficult(currentParagraph)}
           difficultyCount={readingSession.difficultMarks.length}
+          difficultMarks={readingSession.difficultMarks}
+          revisitCount={readingSession.revisitCount}
           companionLevel={readingSession.companionLevel}
           setCompanionLevel={setCompanionLevel}
+          isCurrentDifficult={readingSession.difficultMarks.includes(currentParagraph)}
+          mode={mode}
         />
       </div>
 

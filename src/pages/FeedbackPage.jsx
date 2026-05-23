@@ -43,13 +43,17 @@ export default function FeedbackPage({ goTo, selectedText }) {
               <ReportCell label="难读标记" value={`${summary.difficultCount} 处`} />
               <ReportCell label="便签数量" value={`${summary.noteCount} 条`} />
               <ReportCell label="回看次数" value={`${summary.revisitTotal} 次`} />
+              <ReportCell
+                label="停留最长段落"
+                value={summary.longestDwellParagraph.paragraphIndex == null ? '暂无' : `第 ${summary.longestDwellParagraph.paragraphIndex + 1} 段 · ${summary.longestDwellParagraph.seconds} 秒`}
+              />
               <ReportCell label="建议休息" value="3 分钟" />
             </div>
           </Card>
           <Card>
             <h3 className="card-title">Lodue 的温柔提醒</h3>
             <div className="soft-remind">
-              你在前 5 分钟略有分散，但中段之后专注状态逐渐稳定。建议继续使用舒缓阅读模式，并保持较宽行距。
+              本次读到 {summary.completedParagraphs} 段，标记了 {summary.difficultCount} 处难读，留下 {summary.noteCount} 条便签。下次可以从停留最长或回看最多的段落开始复盘。
             </div>
           </Card>
         </div>

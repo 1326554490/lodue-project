@@ -9,6 +9,7 @@ import { useReadingSession } from '../hooks/useReadingSession.js'
 export default function CommunityPage({ goTo, community, setCommunity, selectedText }) {
   const [message, setMessage] = useState('')
   const { readingSession } = useReadingSession()
+  const currentParagraph = Math.max(readingSession.currentParagraph, 0)
 
   const sendMessage = () => {
     const text = message.trim()
@@ -37,8 +38,11 @@ export default function CommunityPage({ goTo, community, setCommunity, selectedT
             <div className="room-stats">
               <RoomStat label="正在阅读" value="6 人" />
               <RoomStat label="我的进度" value={`${readingSession.progress}%`} />
-              <RoomStat label="当前段落" value={`${readingSession.currentParagraph + 1} / ${readingSession.paragraphCount || 1}`} />
-              <RoomStat label="共鸣留言" value={`${community.length + readingSession.notes.length + 15} 条`} />
+              <RoomStat label="我正在" value={`第 ${currentParagraph + 1} / ${readingSession.paragraphCount || 1} 段`} />
+              <RoomStat label="我标记难读" value={`${readingSession.difficultMarks.length} 处`} />
+            </div>
+            <div className="my-room-state">
+              我正在第 {currentParagraph + 1} 段，完成 {readingSession.progress}%。{readingSession.difficultMarks.length ? `已标记 ${readingSession.difficultMarks.length} 处难读。` : '暂时没有标记难读。'}
             </div>
             <div className="room-action">
               <Button className="w-full">进入共读房间</Button>

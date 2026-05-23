@@ -1,22 +1,23 @@
-import { createContext, createElement, useCallback, useContext, useMemo, useState } from 'react'
+import { createContext, createElement, useCallback, useContext, useMemo, useRef, useState } from 'react'
 
 const initialReadingSession = {
   textId: null,
   currentParagraph: 0,
-  progress: 0,
-  startTime: null,
-  endTime: null,
-  lastParagraph: null,
-  maxReachedParagraph: 0,
   paragraphCount: 0,
+  progress: 0,
+  maxReachedParagraph: 0,
+  visitedParagraphs: [],
   dwellTimes: {},
   revisitCount: {},
-  readPath: [],
   difficultMarks: [],
   notes: [],
+  companionLevel: 'medium',
   mode: 'gentle',
   theme: 'light',
-  companionLevel: 'medium',
+  startTime: null,
+  endTime: null,
+  readPath: [],
+  lastParagraph: null,
 }
 
 const ReadingSessionContext = createContext(null)
@@ -45,17 +46,38 @@ function chooseSuggestedCompanionLevel(session, revisitTotal) {
 
 export function ReadingSessionProvider({ children }) {
   const [readingSession, setReadingSession] = useState(initialReadingSession)
+  const revisitCooldownRef = useRef({})
 
   const startSession = useCallback(({ textId, paragraphCount, mode = 'gentle', theme = 'light' }) => {
-    setReadingSession({
-      ...initialReadingSession,
-      textId,
-      paragraphCount,
-      mode,
-      theme,
-      startTime: Date.now(),
-      maxReachedParagraph: paragraphCount > 0 ? 0 : -1,
-      progress: paragraphCount > 0 ? calculateProgress(0, paragraphCount) : 0,
+    setReadingSession((current) => {
+      if (current.textId === textId) {
+        return {
+          ...current,
+          paragraphCount,
+          mode,
+          theme,
+          endTime: null,
+          maxReachedParagraph: Math.min(current.maxReachedParagraph, Math.max(paragraphCount - 1, 0)),
+          progress: calculateProgress(Math.min(current.maxReachedParagraph, Math.max(paragraphCount - 1, 0)), paragraphCount),
+        }
+      }
+
+      const firstParagraph = paragraphCount > 0 ? 0 : -1
+      revisitCooldownRef.current = {}
+
+      return {
+        ...initialReadingSession,
+        textId,
+        paragraphCount,
+        mode,
+        theme,
+        companionLevel: mode === 'focus' ? 'medium' : mode === 'clear' ? 'medium' : 'weak',
+        startTime: Date.now(),
+        maxReachedParagraph: firstParagraph,
+        currentParagraph: firstParagraph,
+        visitedParagraphs: firstParagraph >= 0 ? [firstParagraph] : [],
+        progress: paragraphCount > 0 ? calculateProgress(firstParagraph, paragraphCount) : 0,
+      }
     })
   }, [])
 
@@ -65,14 +87,25 @@ export function ReadingSessionProvider({ children }) {
         return current
       }
 
-      const hasRevisited = index < current.maxReachedParagraph
+      const now = Date.now()
+      const hasVisited = current.visitedParagraphs.includes(index)
+      const isMovingBack = index < current.currentParagraph
+      const cooldownKey = `${current.currentParagraph}-${index}`
+      const isCoolingDown = now - (revisitCooldownRef.current[cooldownKey] || 0) < 1000
+      const hasRevisited = isMovingBack && hasVisited && !isCoolingDown
       const maxReachedParagraph = Math.max(current.maxReachedParagraph, index)
+      const visitedParagraphs = hasVisited ? current.visitedParagraphs : [...current.visitedParagraphs, index]
+
+      if (hasRevisited) {
+        revisitCooldownRef.current[cooldownKey] = now
+      }
 
       return {
         ...current,
         lastParagraph: current.currentParagraph,
         currentParagraph: index,
         maxReachedParagraph,
+        visitedParagraphs,
         progress: calculateProgress(maxReachedParagraph, current.paragraphCount),
         revisitCount: hasRevisited
           ? {
@@ -86,7 +119,7 @@ export function ReadingSessionProvider({ children }) {
             from: current.currentParagraph,
             to: index,
             paragraphIndex: index,
-            at: Date.now(),
+            at: now,
             type: hasRevisited ? 'revisit' : 'advance',
           },
         ],
