@@ -2,17 +2,18 @@ import { Brain, Leaf, ScanText, SlidersHorizontal } from 'lucide-react'
 import Button from '../components/common/Button.jsx'
 import Card from '../components/common/Card.jsx'
 import PageHero from '../components/common/PageHero.jsx'
-import { bgOptions, modePresets } from '../data/modes.js'
+import { modePresets, surfaceOptions, themeOptions } from '../data/modes.js'
 
 const icons = { gentle: Leaf, focus: Brain, clear: ScanText }
 
 export default function ModePage({ mode, settings, updateSetting, toggleSetting, chooseMode, goTo }) {
   const current = modePresets[mode]
+  const isDark = settings.theme === 'dark' || settings.bg === 'dark'
 
   return (
     <section>
       <PageHero eyebrow="个性化阅读设置" title="已为你生成今日阅读模式">
-        你可以直接使用系统推荐，也可以根据当前状态手动调整字号、行距、背景和辅助功能。
+        阅读模式只决定字号、间距、高亮和阅读尺等策略；浅色、深色和纸张质感属于阅读外观，会在切换模式后保持。
       </PageHero>
 
       <div className="split">
@@ -42,7 +43,7 @@ export default function ModePage({ mode, settings, updateSetting, toggleSetting,
             })}
           </div>
           <div className="grid-2 mt24">
-            <Button onClick={() => goTo('reader')}>使用推荐模式进入阅读</Button>
+            <Button onClick={() => goTo('reader')}>使用当前设置进入阅读</Button>
             <Button variant="secondary" onClick={() => goTo('reader')}>
               跳过，直接阅读
             </Button>
@@ -57,14 +58,35 @@ export default function ModePage({ mode, settings, updateSetting, toggleSetting,
           <Slider label="行距" value={Number(settings.line).toFixed(2)} min="1.4" max="2.4" step="0.05" current={settings.line} onChange={(v) => updateSetting('line', Number(v))} />
           <Slider label="字间距" value={`${settings.letter}px`} min="0" max="2" step="0.1" current={settings.letter} onChange={(v) => updateSetting('letter', Number(v))} />
 
-          <div className="small strong mb10">背景</div>
-          <div className="bg-grid">
-            {bgOptions.map((option) => (
-              <button key={option.key} className={`bg-chip ${settings.bg === option.key ? 'active' : ''}`} onClick={() => updateSetting('bg', option.key)}>
-                <span className="swatch" style={{ background: option.color }} />
-                {option.label}
-              </button>
-            ))}
+          <div className="appearance-panel">
+            <div className="small strong mb10">阅读外观</div>
+            <div className="appearance-group">
+              <div className="appearance-label">主题</div>
+              <div className="bg-grid">
+                {themeOptions.map((option) => (
+                  <button key={option.key} className={`bg-chip ${settings.theme === option.key ? 'active' : ''}`} onClick={() => updateSetting('theme', option.key)}>
+                    <span className="swatch" style={{ background: option.color }} />
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className={`appearance-group ${isDark ? 'is-muted' : ''}`}>
+              <div className="appearance-label">浅色文本表面</div>
+              <div className="bg-grid">
+                {surfaceOptions.map((option) => (
+                  <button
+                    key={option.key}
+                    className={`bg-chip ${settings.theme !== 'dark' && settings.surface === option.key ? 'active' : ''}`}
+                    onClick={() => updateSetting('surface', option.key)}
+                  >
+                    <span className="swatch" style={{ background: option.color }} />
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+              {isDark ? <div className="small muted mt-2">纸张质感仅在浅色主题中生效；点击任一表面会切回浅色。</div> : null}
+            </div>
           </div>
 
           <div className="mt24">

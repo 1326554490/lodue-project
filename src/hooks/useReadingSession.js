@@ -17,6 +17,8 @@ const initialReadingSession = {
   startTime: null,
   endTime: null,
   readPath: [],
+  paragraphPath: [],
+  rhythmHistory: [],
   lastParagraph: null,
 }
 
@@ -124,6 +126,14 @@ export function ReadingSessionProvider({ children }) {
             type: hasRevisited ? 'revisit' : 'advance',
           },
         ],
+        paragraphPath: [
+          ...current.paragraphPath,
+          {
+            paragraph: index,
+            at: now,
+            type: hasRevisited ? 'revisit' : 'move',
+          },
+        ],
       }
     })
   }, [])
@@ -138,6 +148,32 @@ export function ReadingSessionProvider({ children }) {
         [paragraphIndex]: Number(((current.dwellTimes[paragraphIndex] || 0) + seconds).toFixed(1)),
       },
     }))
+  }, [])
+
+  const recordRhythmSample = useCallback(({ paragraph, type, dwellSec }) => {
+    if (!type || paragraph == null) return
+
+    setReadingSession((current) => {
+      const now = Date.now()
+      const last = current.rhythmHistory[current.rhythmHistory.length - 1]
+
+      if (last && last.type === type && now - last.at < 5000) {
+        return current
+      }
+
+      return {
+        ...current,
+        rhythmHistory: [
+          ...current.rhythmHistory,
+          {
+            at: now,
+            paragraph,
+            type,
+            dwellSec: Number((dwellSec || 0).toFixed(1)),
+          },
+        ],
+      }
+    })
   }, [])
 
   const markDifficult = useCallback((paragraphIndex) => {
@@ -239,6 +275,7 @@ export function ReadingSessionProvider({ children }) {
       startSession,
       updateCurrentParagraph,
       addDwellTime,
+      recordRhythmSample,
       markDifficult,
       addNote,
       updateNote,
@@ -249,6 +286,7 @@ export function ReadingSessionProvider({ children }) {
     }),
     [
       addDwellTime,
+      recordRhythmSample,
       addNote,
       updateNote,
       deleteNote,

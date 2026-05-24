@@ -42,14 +42,18 @@ export default function CompanionPanel({
   paragraphText = '',
   mode = 'gentle',
   testState,
+  liveReading,
 }) {
   const safeTotal = Math.max(totalParagraphs || 0, 1)
   const safeActive = Math.min(Math.max(activeParagraph || 0, 0), safeTotal - 1)
   const safeProgress = Math.min(100, Math.max(0, Math.round(progress || 0)))
   const safeLevel = companionLabels[companionLevel] ? companionLevel : 'medium'
-  const rhythm = getRhythmMeta({ activeParagraph: safeActive, paragraphText, mode, testRhythmType: testState?.rhythmType })
+  const rhythm = getRhythmMeta({ activeParagraph: safeActive, paragraphText, mode, testRhythmType: testState?.rhythmType, liveReading })
   const levelConfig = levelTempo[safeLevel] || levelTempo.medium
   const feedbackText = safeLevel === 'weak' ? '轻陪伴中' : levelConfig.showCoach ? rhythm.coachText : rhythm.rhythmLabel
+  const suggestedTempo = getTempoSuggestion(rhythm.rhythmGroup)
+  const attentionRippleSpeed = getAttentionRippleSpeed(liveReading?.currentDwellSec || 0)
+  const rippleSpeed = getRippleSpeed(rhythm.rhythmGroup, liveReading?.currentDwellSec || 0)
 
   if (safeLevel === 'off') {
     return (
@@ -81,7 +85,7 @@ export default function CompanionPanel({
       <div className="companion-inner">
         <div className="tempo-head">
           <div>
-            <div className="pill-soft">Lodue陪伴中</div>
+            <div className={`tempo-status-dot rhythm-${rhythm.rhythmGroup}`}>Lodue陪伴中</div>
             <h3>Lodue Tempo Guide｜阅读节奏引导器</h3>
             <p>{rhythm.rhythmLabel} · 第 {safeActive + 1} / {safeTotal} 段</p>
           </div>
@@ -98,11 +102,17 @@ export default function CompanionPanel({
           totalParagraphs={safeTotal}
           mode={mode}
           rhythm={rhythm}
+          anchorLabel={getAnchorLabel(safeLevel)}
+          attentionRippleSpeed={attentionRippleSpeed}
+          rippleSpeed={rippleSpeed}
         />
 
-        <div className={`tempo-feedback rhythm-${rhythm.rhythmGroup} ${safeLevel === 'weak' ? 'quiet' : ''}`}>
-          {feedbackText}
-        </div>
+        {safeLevel !== 'weak' ? (
+          <div className={`tempo-feedback rhythm-${rhythm.rhythmGroup}`}>
+            <span>{feedbackText}</span>
+            {safeLevel === 'strong' ? <small>本段停留 {Math.round(liveReading?.currentDwellSec || 0)}s · 建议节奏：{suggestedTempo}</small> : null}
+          </div>
+        ) : null}
 
         <div className="assist-actions" aria-label="陪伴强度切换">
           {Object.entries(companionLabels).map(([level, label]) => (
@@ -121,7 +131,7 @@ export default function CompanionPanel({
   )
 }
 
-function TempoGuideVisual({ level, progress, activeParagraph, totalParagraphs, mode, rhythm }) {
+function TempoGuideVisual({ level, progress, activeParagraph, totalParagraphs, mode, rhythm, anchorLabel, attentionRippleSpeed, rippleSpeed }) {
   const safeTotal = Math.max(totalParagraphs || 0, 1)
   const modeConfig = modeTempo[mode] || modeTempo.gentle
   const levelConfig = levelTempo[level] || levelTempo.medium
@@ -138,8 +148,18 @@ function TempoGuideVisual({ level, progress, activeParagraph, totalParagraphs, m
         '--anchor-size': `${modeConfig.anchorSize}px`,
         '--anchor-alpha': levelConfig.anchorAlpha,
         '--marker-left': `${rhythm.markerPosition}%`,
+        '--attention-ripple-speed': attentionRippleSpeed,
+        '--ripple-speed': rippleSpeed,
       }}
     >
+      {level === 'strong' && ['fast', 'slow', 'attention'].includes(rhythm.rhythmGroup) ? (
+        <div className={`tempo-ripple-layer rhythm-${rhythm.rhythmGroup}`} aria-hidden="true">
+          <span />
+          <span />
+          <span />
+        </div>
+      ) : null}
+
       <div className="tempo-bead-chain" aria-label="阅读进度珠链">
         {beads.map((_, index) => {
           const isRead = index <= progressBead
@@ -170,13 +190,18 @@ function TempoGuideVisual({ level, progress, activeParagraph, totalParagraphs, m
             <span className="tempo-meter-segment fast" />
             <i className="tempo-meter-marker" />
           </div>
+          <span className="tempo-meter-anchor-label">{anchorLabel}</span>
         </div>
-      ) : null}
-
-      <div className="tempo-anchor" aria-hidden="true">
-        {levelConfig.ring ? <span className="tempo-anchor-ring" /> : null}
-        <span className="tempo-anchor-core" />
-      </div>
+      ) : (
+        <div className="tempo-meter tempo-meter-minimal" aria-label={`当前节奏：${rhythm.rhythmLabel}`}>
+          <div className="tempo-meter-track">
+            <span className="tempo-meter-segment slow" />
+            <span className="tempo-meter-segment steady" />
+            <span className="tempo-meter-segment fast" />
+            <i className="tempo-meter-marker" />
+          </div>
+        </div>
+      )}
 
       <div className="tempo-guide-meta">
         <strong>{progress}%</strong>
@@ -186,36 +211,81 @@ function TempoGuideVisual({ level, progress, activeParagraph, totalParagraphs, m
   )
 }
 
-function getRhythmMeta({ activeParagraph, paragraphText, mode, testRhythmType }) {
-  const rhythmType = testRhythmType || getFallbackRhythmType({ activeParagraph, paragraphText })
-  const rhythmGroup = rhythmType === 'tooFast' || rhythmType === 'fast'
-    ? 'fast'
-    : rhythmType === 'verySlow' || rhythmType === 'slow'
-      ? 'slow'
-      : 'steady'
+function getRhythmMeta({ activeParagraph, paragraphText, mode, testRhythmType, liveReading }) {
+  const rhythmType = liveReading?.rhythmType || testRhythmType || getFallbackRhythmType({ activeParagraph, paragraphText })
+  const rhythmGroup = getRhythmGroup(rhythmType)
   const modeConfig = modeTempo[mode] || modeTempo.gentle
   const labelMap = {
     tooFast: '读得非常快，可能还没充分理解',
     fast: '节奏偏快',
     steady: '节奏稳定',
-    slow: '节奏偏慢但稳定',
+    slow: '节奏偏慢',
     verySlow: '阅读较慢，可以使用舒缓或清晰辅助',
   }
   const coachMap = {
     fast: '可以稍微放慢，给句子留一点停顿',
     steady: '节奏稳定，继续向前',
-    slow: '慢一点也可以，保持舒适节奏',
+    slow: '可以稍微提起节奏，继续读下一句',
   }
-  const speedScale = rhythmGroup === 'fast' ? 0.82 : rhythmGroup === 'slow' ? 1.15 : 1
+  const speedScale = rhythmGroup === 'fast' ? 1.22 : rhythmGroup === 'slow' ? 1.36 : rhythmGroup === 'attention' ? 0.92 : 1
 
   return {
     rhythmType,
     rhythmGroup,
-    rhythmLabel: labelMap[rhythmType] || modeConfig.status || '节奏稳定',
-    coachText: coachMap[rhythmGroup],
-    markerPosition: rhythmGroup === 'slow' ? 20 : rhythmGroup === 'fast' ? 82 : 50,
+    rhythmLabel: liveReading?.rhythmLabel || labelMap[rhythmType] || modeConfig.status || '节奏稳定',
+    coachText: liveReading?.coachText || coachMap[rhythmGroup],
+    markerPosition: rhythmGroup === 'attention' ? 18 : rhythmGroup === 'slow' ? 24 : rhythmGroup === 'fast' ? 82 : 50,
     pulseDuration: Number((modeConfig.pulseBase * speedScale).toFixed(2)),
   }
+}
+
+function getAnchorLabel(level) {
+  if (level === 'weak') return '呼吸锚点'
+  if (level === 'strong') return '跟随这个节奏读'
+  return '节奏锚点'
+}
+
+function getSuggestedTempo(rhythmGroup) {
+  if (rhythmGroup === 'attention') return '回到段落'
+  if (rhythmGroup === 'fast') return '放慢'
+  if (rhythmGroup === 'slow') return '慢读'
+  return '保持'
+}
+
+function getRhythmGroup(rhythmType) {
+  if (rhythmType === 'building') return 'building'
+  if (rhythmType === 'attention') return 'attention'
+  if (rhythmType === 'tooFast' || rhythmType === 'fast') return 'fast'
+  if (rhythmType === 'verySlow' || rhythmType === 'slow') return 'slow'
+  return 'steady'
+}
+
+function getTempoSuggestion(rhythmGroup) {
+  const suggestionMap = {
+    building: '建立中',
+    fast: '放慢',
+    steady: '保持',
+    slow: '稍微提速',
+    attention: '回到段落',
+  }
+  return suggestionMap[rhythmGroup] || suggestionMap.steady
+}
+
+function getAttentionRippleSpeed(currentDwellSec) {
+  if (currentDwellSec > 90) return '1.7s'
+  if (currentDwellSec > 60) return '2.4s'
+  return '3.4s'
+}
+
+function getRippleSpeed(rhythmGroup, currentDwellSec) {
+  if (rhythmGroup === 'fast') return '2.6s'
+  if (rhythmGroup === 'slow') return '3s'
+  if (rhythmGroup === 'attention') {
+    if (currentDwellSec > 90) return '1.5s'
+    if (currentDwellSec > 60) return '2s'
+    return '2.8s'
+  }
+  return '4s'
 }
 
 function getFallbackRhythmType({ activeParagraph, paragraphText }) {

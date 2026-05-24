@@ -7,9 +7,11 @@ export default function ReaderPaper({
   mode,
   activePara,
   onActiveParaChange,
+  onConfirmedParaChange,
   chooseMode,
   updateSetting,
   toggleSetting,
+  showRail = false,
   difficultMarks,
   notes,
   addNote,
@@ -21,6 +23,9 @@ export default function ReaderPaper({
   const paragraphRefs = useRef([])
   const paperRef = useRef(null)
   const hoverRef = useRef(null)
+  const hoverTimerRef = useRef(null)
+  const scrollAnchorRef = useRef(activePara)
+  const pointerInReaderRef = useRef(false)
   const [rulerY, setRulerY] = useState(132)
   const [openNoteId, setOpenNoteId] = useState(null)
   const [openNoteParagraph, setOpenNoteParagraph] = useState(null)
@@ -31,10 +36,11 @@ export default function ReaderPaper({
   }, {})
   const openNote = notes.find((note) => note.id === openNoteId)
   const isAddingNote = openNoteId === 'new'
+  const isDark = settings.theme === 'dark' || settings.bg === 'dark'
+  const paperSurface = isDark ? 'dark' : settings.surface === 'paper' ? 'cream' : settings.surface === 'plain' ? 'plain' : 'mist'
 
   useEffect(() => {
     const updateFromAnchor = () => {
-      if (hoverRef.current != null) return
       const anchorY = window.innerHeight * 0.4
       let closestIndex = activePara
       let closestDistance = Number.POSITIVE_INFINITY
@@ -50,7 +56,19 @@ export default function ReaderPaper({
         }
       })
 
-      if (closestIndex !== activePara) onActiveParaChange(closestIndex)
+      const nearPageBottom = window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 32
+      if (nearPageBottom) {
+        const lastVisibleIndex = paragraphRefs.current.reduce((lastIndex, node, index) => {
+          if (!node) return lastIndex
+          const rect = node.getBoundingClientRect()
+          return rect.top < window.innerHeight && rect.bottom > 0 ? index : lastIndex
+        }, closestIndex)
+        closestIndex = lastVisibleIndex
+      }
+
+      scrollAnchorRef.current = closestIndex
+      if (!pointerInReaderRef.current && closestIndex !== activePara) onActiveParaChange(closestIndex)
+      if (onConfirmedParaChange) onConfirmedParaChange(closestIndex, 'scroll')
     }
 
     updateFromAnchor()
@@ -60,7 +78,13 @@ export default function ReaderPaper({
       window.removeEventListener('scroll', updateFromAnchor)
       window.removeEventListener('resize', updateFromAnchor)
     }
-  }, [activePara, onActiveParaChange, paragraphs.length])
+  }, [activePara, onActiveParaChange, onConfirmedParaChange, paragraphs.length])
+
+  useEffect(() => {
+    return () => {
+      if (hoverTimerRef.current) window.clearTimeout(hoverTimerRef.current)
+    }
+  }, [])
 
   useEffect(() => {
     const node = paragraphRefs.current[activePara]
@@ -72,19 +96,46 @@ export default function ReaderPaper({
   }, [activePara])
 
   const handleMouseMove = (event) => {
+    pointerInReaderRef.current = true
     if (!paperRef.current || !settings.ruler) return
     const rect = paperRef.current.getBoundingClientRect()
     setRulerY(event.clientY - rect.top)
   }
 
   const handleLeavePaper = () => {
+    pointerInReaderRef.current = false
     hoverRef.current = null
+    if (hoverTimerRef.current) window.clearTimeout(hoverTimerRef.current)
     const node = paragraphRefs.current[activePara]
     const paper = paperRef.current
     if (!node || !paper) return
     const nodeRect = node.getBoundingClientRect()
     const paperRect = paper.getBoundingClientRect()
     setRulerY(nodeRect.top - paperRect.top + nodeRect.height / 2)
+  }
+
+  const activateParagraphByPointer = (index) => {
+    pointerInReaderRef.current = true
+    hoverRef.current = index
+    onActiveParaChange(index)
+
+    const node = paragraphRefs.current[index]
+    const paper = paperRef.current
+    if (node && paper) {
+      const nodeRect = node.getBoundingClientRect()
+      const paperRect = paper.getBoundingClientRect()
+      setRulerY(nodeRect.top - paperRect.top + nodeRect.height / 2)
+    }
+
+    if (hoverTimerRef.current) window.clearTimeout(hoverTimerRef.current)
+    hoverTimerRef.current = window.setTimeout(() => {
+      const targetNode = paragraphRefs.current[index]
+      const rect = targetNode?.getBoundingClientRect()
+      const isVisible = rect && rect.bottom > 0 && rect.top < window.innerHeight
+      if (hoverRef.current === index && isVisible && Math.abs(index - scrollAnchorRef.current) <= 2) {
+        if (onConfirmedParaChange) onConfirmedParaChange(index, 'hover')
+      }
+    }, 650)
   }
 
   const openNewNote = (paragraphIndex) => {
@@ -128,12 +179,12 @@ export default function ReaderPaper({
 
   return (
     <div
-      className={`reader-paper paper-${settings.bg} reader-mode-${mode}`}
+      className={`reader-paper paper-${paperSurface} reader-mode-${mode}`}
       ref={paperRef}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleLeavePaper}
     >
-      <div className="reader-rail" aria-label="阅读工具">
+      {showRail ? <div className="reader-rail" aria-label="阅读工具">
         <div className="rail-label">字号</div>
         <button className="rail-btn" onClick={() => updateSetting('font', Math.min(24, settings.font + 1))} title="放大字号">A+</button>
         <button className="rail-btn" onClick={() => updateSetting('font', Math.max(15, settings.font - 1))} title="缩小字号">A-</button>
@@ -144,8 +195,8 @@ export default function ReaderPaper({
         <button className={`rail-btn ${mode === 'clear' ? 'active' : ''}`} onClick={() => chooseMode('clear')} title="清晰模式">清</button>
         <div className="rail-divider" />
         <div className="rail-label">背景</div>
-        <button className={`rail-btn ${settings.bg === 'mist' ? 'active' : ''}`} onClick={() => updateSetting('bg', 'mist')} title="浅色背景">浅</button>
-        <button className={`rail-btn ${settings.bg === 'dark' ? 'active' : ''}`} onClick={() => updateSetting('bg', 'dark')} title="深色背景">深</button>
+        <button className={`rail-btn ${!isDark ? 'active' : ''}`} onClick={() => updateSetting('theme', 'light')} title="浅色主题">浅</button>
+        <button className={`rail-btn ${isDark ? 'active' : ''}`} onClick={() => updateSetting('theme', 'dark')} title="深色主题">深</button>
         <div className="rail-divider" />
         <button className={`rail-btn icon ${settings.focus ? 'active' : ''}`} onClick={() => toggleSetting('focus')} title="高亮当前段落" aria-label="高亮当前段落">
           <Highlighter size={15} />
@@ -153,7 +204,7 @@ export default function ReaderPaper({
         <button className={`rail-btn icon ${settings.ruler ? 'active' : ''}`} onClick={() => toggleSetting('ruler')} title="阅读尺" aria-label="阅读尺">
           <Ruler size={15} />
         </button>
-      </div>
+      </div> : null}
 
       {settings.ruler ? <div className={`reading-ruler ruler-${mode}`} style={{ top: rulerY }} /> : null}
 
@@ -172,11 +223,14 @@ export default function ReaderPaper({
               }}
               data-index={index}
               className={`para ${settings.focus ? (isActive ? 'active' : 'dimmed') : 'no-focus'} ${isDifficult ? 'difficult' : ''} ${paragraphNotes.length ? 'has-note' : ''}`}
-              onMouseEnter={() => {
-                hoverRef.current = index
-                onActiveParaChange(index)
+              onMouseEnter={() => activateParagraphByPointer(index)}
+              onMouseMove={() => {
+                if (hoverRef.current !== index) activateParagraphByPointer(index)
               }}
-              onClick={() => onActiveParaChange(index)}
+              onClick={() => {
+                onActiveParaChange(index)
+                if (onConfirmedParaChange) onConfirmedParaChange(index, 'click')
+              }}
               style={{
                 fontSize: `${settings.font}px`,
                 lineHeight: settings.line,

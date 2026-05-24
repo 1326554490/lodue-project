@@ -1,5 +1,6 @@
 import { ChevronLeft, Home } from 'lucide-react'
 import Button from './Button.jsx'
+import ThemeToggle from './ThemeToggle.jsx'
 
 const navItems = [
   { key: 'home', label: '入口' },
@@ -10,12 +11,12 @@ const navItems = [
   { key: 'community', label: '共读' },
 ]
 
-export default function AppShell({ children, page, goTo, goBack, isDark }) {
+export default function AppShell({ children, page, goTo, goBack, isDarkTheme, updateSetting, isDark = isDarkTheme }) {
   const currentIndex = navItems.findIndex((item) => item.key === page)
   const iconSrc = isDark ? '/icons/lodue-dark.png' : '/icons/lodue-light.png'
 
   return (
-    <div className={isDark ? 'app-root dark-ui' : 'app-root'}>
+    <div className={isDark ? 'app-root dark-ui lodue-dark' : 'app-root'}>
       <header className="header">
         <div className="header-inner">
           <button className="brand" type="button" onClick={() => goTo('home')}>
@@ -49,6 +50,7 @@ export default function AppShell({ children, page, goTo, goBack, isDark }) {
           </div>
 
           <div className="header-actions">
+            <ThemeToggle updateSetting={updateSetting} isDarkTheme={isDark} />
             {page !== 'home' ? (
               <>
                 <Button variant="secondary" onClick={goBack}>

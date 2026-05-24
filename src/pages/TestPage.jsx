@@ -35,7 +35,7 @@ function getReadingRhythm(seconds, text = baselineText) {
   const minutes = seconds / 60
   const charsPerMinute = Math.round(charCount / Math.max(minutes, 0.01))
 
-  if (charsPerMinute >= 720) {
+  if (charsPerMinute >= 850) {
     return {
       charCount,
       charsPerMinute,
@@ -45,7 +45,7 @@ function getReadingRhythm(seconds, text = baselineText) {
     }
   }
 
-  if (charsPerMinute >= 520) {
+  if (charsPerMinute >= 600) {
     return {
       charCount,
       charsPerMinute,
@@ -55,7 +55,7 @@ function getReadingRhythm(seconds, text = baselineText) {
     }
   }
 
-  if (charsPerMinute >= 260) {
+  if (charsPerMinute >= 360) {
     return {
       charCount,
       charsPerMinute,
@@ -65,13 +65,13 @@ function getReadingRhythm(seconds, text = baselineText) {
     }
   }
 
-  if (charsPerMinute >= 140) {
+  if (charsPerMinute >= 240) {
     return {
       charCount,
       charsPerMinute,
       rhythmType: 'slow',
-      rhythmLabel: '节奏偏慢但稳定',
-      rhythmExplain: '你更适合慢读节奏，舒缓陪伴可以减少压力并保留阅读连贯性。',
+      rhythmLabel: '节奏稍慢，可以适当提起节奏',
+      rhythmExplain: '当前速度略慢，进入正文后可以让 Lodue 用节奏仪表轻轻提醒你继续读下一句。',
     }
   }
 
@@ -178,7 +178,7 @@ export default function TestPage({ selectedText, testState, setTestState, goTo, 
 
   const startBaseline = () => {
     setWarning('')
-    startTimeRef.current = Date.now()
+    startTimeRef.current = performance.now()
     timer.reset()
     timer.start()
     setTestState((current) => ({
@@ -189,18 +189,22 @@ export default function TestPage({ selectedText, testState, setTestState, goTo, 
       rhythmType: null,
       rhythmLabel: '',
       rhythmExplain: '',
+      skipped: false,
       baselineStarted: true,
     }))
   }
 
   const finishBaseline = () => {
-    timer.stop()
-    const elapsedSeconds = startTimeRef.current
-      ? Number(((Date.now() - startTimeRef.current) / 1000).toFixed(1))
-      : timer.seconds
+    if (!startTimeRef.current || !hasStarted) {
+      setWarning('请先开始计时，或选择跳过测试。')
+      return
+    }
 
-    if (elapsedSeconds < 6) {
-      setWarning('阅读时间过短，建议重新测试')
+    timer.stop()
+    const elapsedSeconds = Math.round((performance.now() - startTimeRef.current) / 1000)
+
+    if (elapsedSeconds < 2) {
+      setWarning('时间过短，可能是误触，可以重新测试或跳过校准。')
       setTestState((current) => ({ ...current, seconds: elapsedSeconds, baselineStarted: false }))
       startTimeRef.current = null
       timer.reset()
@@ -211,6 +215,7 @@ export default function TestPage({ selectedText, testState, setTestState, goTo, 
     setTestState((current) => ({
       ...current,
       step: 3,
+      skipped: false,
       seconds: elapsedSeconds,
       charCount: rhythmResult.charCount,
       charsPerMinute: rhythmResult.charsPerMinute,
@@ -220,6 +225,26 @@ export default function TestPage({ selectedText, testState, setTestState, goTo, 
       baselineStarted: false,
     }))
     startTimeRef.current = null
+  }
+
+  const skipTest = () => {
+    timer.stop()
+    startTimeRef.current = null
+    const skippedState = {
+      skipped: true,
+      seconds: null,
+      charCount: countChars(baselineText),
+      charsPerMinute: null,
+      rhythmType: 'steady',
+      rhythmLabel: '未测试，使用默认稳定节奏',
+      rhythmExplain: '已跳过测试，本次使用默认稳定节奏。',
+      baselineStarted: false,
+      feedback: testState.feedback || [],
+    }
+    const nextState = { ...testState, ...skippedState, profile: buildProfile({ ...testState, ...skippedState }) }
+    setTestState(nextState)
+    chooseMode(nextState.profile.recommendedMode)
+    goTo('mode')
   }
 
   const finish = () => {
@@ -267,6 +292,9 @@ export default function TestPage({ selectedText, testState, setTestState, goTo, 
               ))}
             </div>
             <div className="actions right">
+              <Button variant="secondary" onClick={skipTest}>
+                跳过测试
+              </Button>
               <Button disabled={!selfCheck.length} onClick={() => setTestState((current) => ({ ...current, step: 2 }))}>
                 进入阅读基线测试
               </Button>
@@ -289,6 +317,9 @@ export default function TestPage({ selectedText, testState, setTestState, goTo, 
                 <Button variant="secondary" disabled={!hasStarted} onClick={timer.running ? timer.pause : timer.start}>
                   {timer.running ? '暂停' : '继续'}
                 </Button>
+                <Button variant="secondary" onClick={skipTest}>
+                  跳过测试
+                </Button>
               </div>
             </div>
             {warning ? <div className="calibration-warning">{warning}</div> : null}
@@ -301,7 +332,7 @@ export default function TestPage({ selectedText, testState, setTestState, goTo, 
               <Button variant="secondary" onClick={() => setTestState((current) => ({ ...current, step: 1, baselineStarted: false }))}>
                 返回上一步
               </Button>
-              <Button disabled={!hasStarted} onClick={finishBaseline}>
+              <Button onClick={finishBaseline}>
                 我读完了
               </Button>
             </div>
@@ -311,9 +342,15 @@ export default function TestPage({ selectedText, testState, setTestState, goTo, 
         {testState.step === 3 ? (
           <>
             <div className="note-soft mb18">
-              本段阅读用时：<strong>{testState.seconds} 秒</strong>；共 <strong>{profile.chars} 字</strong>；每分钟约 <strong>{profile.charsPerMinute || 0} 字</strong>。
-              <br />
-              节奏判断：<strong>{profile.rhythmLabel}</strong>。{profile.rhythmExplain}
+              {testState.skipped ? (
+                <>已跳过测试，本次使用默认稳定节奏。</>
+              ) : (
+                <>
+                  本段阅读用时：<strong>{testState.seconds} 秒</strong>；共 <strong>{profile.chars} 字</strong>；每分钟约 <strong>{profile.charsPerMinute || 0} 字</strong>。
+                  <br />
+                  节奏判断：<strong>{profile.rhythmLabel}</strong>。{profile.rhythmExplain}
+                </>
+              )}
             </div>
             <div className="choice-grid">
               {feedbackOptions.map((option) => (

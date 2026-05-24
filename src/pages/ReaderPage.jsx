@@ -1,4 +1,4 @@
-import { PenLine } from 'lucide-react'
+import { Highlighter, PenLine, Ruler } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Button from '../components/common/Button.jsx'
 import Card from '../components/common/Card.jsx'
@@ -11,12 +11,75 @@ import { useReadingSession } from '../hooks/useReadingSession.js'
 
 const fallbackKeywords = ['图书馆', '阳光', '旧书', '批注', '交谈', '慢读', '陪伴', '心事']
 
+function buildLiveReadingState(testRhythmType, detail = {}) {
+  const {
+    rhythmReady = false,
+    currentDwellSec = 0,
+    lastParagraphDwellSec = 0,
+    avgDwellSec = 0,
+    paragraphText = '',
+    mode = 'gentle',
+    lastMoveSec = 0,
+    fastScroll = false,
+    recentScrollMove = false,
+    lastExpectedSeconds = 0,
+    lastParagraphChars = 0,
+  } = detail
+  const paragraphLength = paragraphText.replace(/\s/g, '').length
+  const charsPerSecond = mode === 'focus' ? 6.2 : mode === 'clear' ? 5.4 : 5
+  const expectedSeconds = Math.min(28, Math.max(4, paragraphLength / charsPerSecond))
+  const referenceExpectedSeconds = lastExpectedSeconds || expectedSeconds
+  const attentionThreshold = Math.max(55, expectedSeconds * 2.6)
+  let rhythmType = normalizeBaselineRhythm(testRhythmType) || 'steady'
+
+  if (!rhythmReady) {
+    rhythmType = 'building'
+  } else if (currentDwellSec > attentionThreshold) {
+    rhythmType = 'attention'
+  } else if (fastScroll || (recentScrollMove && lastParagraphChars >= 60 && lastParagraphDwellSec > 0 && lastParagraphDwellSec < referenceExpectedSeconds * 0.42)) {
+    rhythmType = 'fast'
+  } else if (currentDwellSec > 0) {
+    if (currentDwellSec > expectedSeconds * 1.25 && currentDwellSec <= attentionThreshold) rhythmType = 'slow'
+    else rhythmType = 'steady'
+  }
+
+  const rhythmCopy = {
+    building: ['正在建立节奏', '先读一小段，Lodue 会再判断你的节奏'],
+    fast: ['节奏偏快', '可以稍微放慢，给句子留一点停顿'],
+    steady: ['节奏稳定', '保持当前节奏，继续向前'],
+    attention: ['注意力停留', '回到当前段落，接着读下一句'],
+    slow: ['节奏偏慢', '可以稍微提起节奏，继续读下一句'],
+  }
+  const [rhythmLabel, coachText] = rhythmCopy[rhythmType] || rhythmCopy.steady
+
+  return {
+    rhythmReady,
+    currentDwellSec,
+    lastParagraphDwellSec,
+    avgDwellSec,
+    lastMoveSec,
+    expectedSeconds,
+    attentionThreshold,
+    rhythmType,
+    rhythmLabel,
+    coachText,
+  }
+}
+
+function normalizeBaselineRhythm(type) {
+  if (type === 'tooFast' || type === 'fast') return 'fast'
+  if (type === 'verySlow' || type === 'slow') return 'slow'
+  if (type === 'steady') return 'steady'
+  return null
+}
+
 export default function ReaderPage({ selectedText, mode, settings, updateSetting, toggleSetting, chooseMode, goTo, testState }) {
   const {
     readingSession,
     startSession,
     updateCurrentParagraph,
     addDwellTime,
+    recordRhythmSample,
     markDifficult,
     addNote,
     updateNote,
@@ -33,9 +96,28 @@ export default function ReaderPage({ selectedText, mode, settings, updateSetting
       .filter(Boolean)
   }, [activeText?.content])
   const dwellRef = useRef({ paragraphIndex: 0, enteredAt: 0 })
+  const activeStartedAtRef = useRef(performance.now())
+  const pageStartedAtRef = useRef(performance.now())
+  const lastParagraphChangeAtRef = useRef(performance.now())
+  const previousParagraphRef = useRef(0)
+  const dwellTimesRef = useRef({})
+  const lastParagraphDwellSecRef = useRef(0)
+  const lastParagraphCharsRef = useRef(0)
+  const recentMoveRef = useRef([])
+  const lastExpectedSecondsRef = useRef(0)
+  const confirmedMoveCountRef = useRef(0)
+  const pendingMoveSourceRef = useRef('scroll')
+  const rhythmCandidateRef = useRef({ type: 'building', since: performance.now() })
+  const rhythmCandidateCountRef = useRef(0)
+  const rhythmHoldUntilRef = useRef(0)
   const [toast, setToast] = useState('')
+  const [liveReading, setLiveReading] = useState(() => buildLiveReadingState(testState?.rhythmType))
+  const [sidebarWidth, setSidebarWidth] = useState(340)
+  const dragStartRef = useRef(null)
   const currentParagraph = Math.min(Math.max(readingSession.currentParagraph, 0), Math.max(paragraphs.length - 1, 0))
+  const [visualCurrentParagraph, setVisualCurrentParagraph] = useState(currentParagraph)
   const companionLevel = readingSession.companionLevel || 'medium'
+  const isDark = settings.theme === 'dark' || settings.bg === 'dark'
   const isCompanionOff = companionLevel === 'off'
   const isFocusMode = mode === 'focus'
   const modeCopy = {
@@ -44,16 +126,36 @@ export default function ReaderPage({ selectedText, mode, settings, updateSetting
     clear: '清晰分段中，段落编号和边界会帮助定位。',
   }
 
+  const sidebarStyle = { '--reader-sidebar-width': `${sidebarWidth}px` }
+
   useEffect(() => {
     startSession({
       textId: activeText.id,
       paragraphCount: paragraphs.length,
       mode,
-      theme: settings.bg === 'dark' ? 'dark' : 'light',
-      companionLevel: testState?.profile?.companionLevel,
+      theme: isDark ? 'dark' : 'light',
+      companionLevel: readingSession.textId === activeText.id ? undefined : testState?.profile?.companionLevel,
     })
     dwellRef.current = { paragraphIndex: 0, enteredAt: Date.now() }
-  }, [mode, paragraphs.length, activeText.id, settings.bg, startSession, testState?.profile?.companionLevel])
+  }, [mode, paragraphs.length, activeText.id, isDark, startSession, testState?.profile?.companionLevel, readingSession.textId])
+
+  useEffect(() => {
+    pageStartedAtRef.current = performance.now()
+    activeStartedAtRef.current = performance.now()
+    lastParagraphChangeAtRef.current = performance.now()
+    previousParagraphRef.current = 0
+    dwellTimesRef.current = {}
+    lastParagraphDwellSecRef.current = 0
+    lastParagraphCharsRef.current = 0
+    lastExpectedSecondsRef.current = 0
+    confirmedMoveCountRef.current = 0
+    recentMoveRef.current = []
+    rhythmCandidateRef.current = { type: 'building', since: performance.now() }
+    rhythmCandidateCountRef.current = 0
+    rhythmHoldUntilRef.current = 0
+    setVisualCurrentParagraph(0)
+    setLiveReading(buildLiveReadingState(testState?.rhythmType))
+  }, [activeText.id, paragraphs.length, testState?.rhythmType])
 
   useEffect(() => {
     const now = Date.now()
@@ -64,9 +166,91 @@ export default function ReaderPage({ selectedText, mode, settings, updateSetting
   }, [addDwellTime, readingSession.currentParagraph])
 
   useEffect(() => {
-    if (testState?.profile?.companionLevel) return
-    setCompanionLevel(mode === 'focus' ? 'medium' : 'weak')
-  }, [mode, setCompanionLevel, testState?.profile?.companionLevel])
+    const now = performance.now()
+    const previousParagraph = previousParagraphRef.current
+    if (previousParagraph === currentParagraph) {
+      setVisualCurrentParagraph(currentParagraph)
+      return
+    }
+    const previousDwellSec = Number(((now - activeStartedAtRef.current) / 1000).toFixed(1))
+    const lastMoveSec = Number(((now - lastParagraphChangeAtRef.current) / 1000).toFixed(1))
+    const source = pendingMoveSourceRef.current
+    const previousText = paragraphs[previousParagraph] || ''
+    const previousChars = previousText.replace(/\s/g, '').length
+    const previousCharsPerSecond = mode === 'focus' ? 6.2 : mode === 'clear' ? 5.4 : 5
+    const previousExpectedSeconds = Math.min(28, Math.max(4, previousChars / previousCharsPerSecond))
+
+    dwellTimesRef.current[previousParagraph] = (dwellTimesRef.current[previousParagraph] || 0) + previousDwellSec
+    lastParagraphDwellSecRef.current = previousDwellSec
+    lastParagraphCharsRef.current = previousChars
+    lastExpectedSecondsRef.current = previousExpectedSeconds
+    if (source === 'scroll' || source === 'hover') {
+      confirmedMoveCountRef.current += 1
+      recentMoveRef.current = [
+        ...recentMoveRef.current.filter((move) => now - move.at <= 3000),
+        { from: previousParagraph, to: currentParagraph, at: now, source },
+      ]
+    }
+    previousParagraphRef.current = currentParagraph
+    activeStartedAtRef.current = now
+    lastParagraphChangeAtRef.current = now
+    pendingMoveSourceRef.current = 'scroll'
+    setVisualCurrentParagraph(currentParagraph)
+    setLiveReading((current) => ({
+      ...current,
+      lastParagraphDwellSec: previousDwellSec,
+      lastMoveSec,
+    }))
+  }, [currentParagraph, mode, paragraphs])
+
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      const now = performance.now()
+      const currentParagraphText = paragraphs[currentParagraph] || ''
+      const currentDwellSec = Number(((now - activeStartedAtRef.current) / 1000).toFixed(1))
+      const recentMoves = recentMoveRef.current.filter((move) => now - move.at <= 3000)
+      recentMoveRef.current = recentMoves
+      const crossedParagraphs = recentMoves.reduce((sum, move) => sum + Math.abs(move.to - move.from), 0)
+      const rhythmReady = (now - pageStartedAtRef.current >= 8000 && currentDwellSec > 0) || confirmedMoveCountRef.current >= 1
+      const recentScrollMove = recentMoves.some((move) => move.to === currentParagraph)
+      const dwellValues = Object.values(dwellTimesRef.current)
+      const avgDwellSec = dwellValues.length
+        ? Number((dwellValues.reduce((sum, value) => sum + value, 0) / dwellValues.length).toFixed(1))
+        : currentDwellSec
+      const nextReading = buildLiveReadingState(testState?.rhythmType, {
+        rhythmReady,
+        currentDwellSec,
+        lastParagraphDwellSec: lastParagraphDwellSecRef.current,
+        avgDwellSec,
+        mode,
+        lastMoveSec: Number(((now - lastParagraphChangeAtRef.current) / 1000).toFixed(1)),
+        fastScroll: crossedParagraphs >= 2,
+        recentScrollMove,
+        lastExpectedSeconds: lastExpectedSecondsRef.current,
+        lastParagraphChars: lastParagraphCharsRef.current,
+        paragraphText: currentParagraphText,
+      })
+
+      const candidate = rhythmCandidateRef.current
+      if (nextReading.rhythmType !== candidate.type) {
+        rhythmCandidateRef.current = { type: nextReading.rhythmType, since: now }
+        rhythmCandidateCountRef.current = 1
+      } else {
+        rhythmCandidateCountRef.current += 1
+      }
+
+      const held = liveReading.rhythmType !== nextReading.rhythmType && now < rhythmHoldUntilRef.current
+      const canSwitch = !held && (nextReading.rhythmType === 'building' || nextReading.rhythmType === liveReading.rhythmType || rhythmCandidateCountRef.current >= 2)
+      if (canSwitch) {
+        if (nextReading.rhythmType === 'attention') rhythmHoldUntilRef.current = now + 4000
+        else if (nextReading.rhythmType === 'fast') rhythmHoldUntilRef.current = now + 2000
+        setLiveReading(nextReading)
+        recordRhythmSample({ paragraph: currentParagraph, type: nextReading.rhythmType, dwellSec: nextReading.currentDwellSec })
+      }
+    }, 800)
+
+    return () => window.clearInterval(id)
+  }, [currentParagraph, paragraphs, testState?.rhythmType, liveReading.rhythmType, mode, recordRhythmSample])
 
   const handleAddNote = useCallback(
     (paragraphIndex, text) => {
@@ -92,6 +276,41 @@ export default function ReaderPage({ selectedText, mode, settings, updateSetting
     [deleteNote],
   )
 
+  const handleConfirmedParagraphChange = useCallback(
+    (paragraphIndex, source = 'scroll') => {
+      if (paragraphIndex === currentParagraph) return
+      pendingMoveSourceRef.current = source
+      updateCurrentParagraph(paragraphIndex)
+    },
+    [currentParagraph, updateCurrentParagraph],
+  )
+
+  const startSidebarDrag = useCallback((event) => {
+    event.preventDefault()
+    dragStartRef.current = {
+      x: event.clientX,
+      width: sidebarWidth,
+    }
+  }, [sidebarWidth])
+
+  useEffect(() => {
+    const handleMove = (event) => {
+      if (!dragStartRef.current) return
+      const delta = dragStartRef.current.x - event.clientX
+      setSidebarWidth(Math.min(420, Math.max(320, dragStartRef.current.width + delta)))
+    }
+    const handleUp = () => {
+      dragStartRef.current = null
+    }
+
+    window.addEventListener('pointermove', handleMove)
+    window.addEventListener('pointerup', handleUp)
+    return () => {
+      window.removeEventListener('pointermove', handleMove)
+      window.removeEventListener('pointerup', handleUp)
+    }
+  }, [])
+
   const handleMarkDifficult = useCallback(
     (paragraphIndex = currentParagraph) => {
       const willCancel = readingSession.difficultMarks.includes(paragraphIndex)
@@ -112,12 +331,13 @@ export default function ReaderPage({ selectedText, mode, settings, updateSetting
     const seconds = Number(((now - dwellRef.current.enteredAt) / 1000).toFixed(1))
 
     addDwellTime(dwellRef.current.paragraphIndex, seconds)
+    recordRhythmSample({ paragraph: currentParagraph, type: liveReading.rhythmType, dwellSec: liveReading.currentDwellSec })
     finishSession()
     goTo('feedback')
   }
 
   return (
-    <section className={`reader-page ${settings.bg === 'dark' ? 'reader-dark' : ''}`}>
+    <section className={`reader-page ${isDark ? 'reader-dark' : ''} ${companionLevel === 'strong' && liveReading.rhythmType === 'attention' ? 'tempo-attention-strong' : ''}`}>
       <div className="reader-top">
         <div>
           <div className="eyebrow">沉浸阅读空间</div>
@@ -132,7 +352,14 @@ export default function ReaderPage({ selectedText, mode, settings, updateSetting
         </div>
       </div>
 
-      <div className={`reader-layout ${isCompanionOff ? 'reader-layout-quiet' : ''}`}>
+      <div className={`reader-layout ${isCompanionOff ? 'reader-layout-quiet' : ''}`} style={sidebarStyle}>
+        <ReaderSideTools
+          mode={mode}
+          settings={settings}
+          chooseMode={chooseMode}
+          updateSetting={updateSetting}
+          toggleSetting={toggleSetting}
+        />
         <div className="card reader-card">
           <ReaderToolbar
             modeLabel={modePresets[mode]?.label || modePresets.gentle.label}
@@ -143,8 +370,9 @@ export default function ReaderPage({ selectedText, mode, settings, updateSetting
             text={activeText}
             settings={settings}
             mode={mode}
-            activePara={currentParagraph}
-            onActiveParaChange={updateCurrentParagraph}
+            activePara={visualCurrentParagraph}
+            onActiveParaChange={setVisualCurrentParagraph}
+            onConfirmedParaChange={handleConfirmedParagraphChange}
             chooseMode={chooseMode}
             updateSetting={updateSetting}
             toggleSetting={toggleSetting}
@@ -157,6 +385,13 @@ export default function ReaderPage({ selectedText, mode, settings, updateSetting
           />
         </div>
 
+        <button
+          className="reader-sidebar-resizer"
+          type="button"
+          aria-label="调整右侧栏宽度"
+          onPointerDown={startSidebarDrag}
+        />
+
         <aside className={`side-stack ${isCompanionOff ? 'quiet-side' : ''} lg:sticky lg:top-24 lg:self-start h-[calc(100vh-120px)] overflow-y-auto pr-1`} aria-label="Lodue Flow 与阅读辅助">
           <div className="sticky top-0 z-20 pb-4">
             <CompanionPanel
@@ -165,13 +400,14 @@ export default function ReaderPage({ selectedText, mode, settings, updateSetting
               totalParagraphs={Math.max(paragraphs.length, 1)}
               companionLevel={companionLevel}
               setCompanionLevel={setCompanionLevel}
-              isDark={settings.bg === 'dark'}
+              isDark={isDark}
               notes={readingSession.notes}
               difficultMarks={readingSession.difficultMarks}
               revisitCount={readingSession.revisitCount}
               paragraphText={paragraphs[currentParagraph] || ''}
               mode={mode}
               testState={testState}
+              liveReading={liveReading}
             />
           </div>
 
@@ -184,11 +420,13 @@ export default function ReaderPage({ selectedText, mode, settings, updateSetting
               revisitCount={readingSession.revisitCount}
               isCurrentDifficult={readingSession.difficultMarks.includes(currentParagraph)}
               compact={isCompanionOff || isFocusMode}
+              isDark={isDark}
             />
             <NotesCard
               notes={readingSession.notes}
               activeParagraph={currentParagraph}
               compact={isCompanionOff}
+              isDark={isDark}
               onAddHint={() => setToast('点击正文段落旁的笔形按钮添加便签')}
             />
             {!isCompanionOff && !isFocusMode && settings.keywords ? <KeywordsCard keywords={activeText.keywords || fallbackKeywords} /> : null}
@@ -201,7 +439,34 @@ export default function ReaderPage({ selectedText, mode, settings, updateSetting
   )
 }
 
-function ReadingAssistCard({ progress, activeParagraph, totalParagraphs, difficultMarks, revisitCount, isCurrentDifficult, compact = false }) {
+function ReaderSideTools({ mode, settings, chooseMode, updateSetting, toggleSetting }) {
+  const isDark = settings.theme === 'dark' || settings.bg === 'dark'
+  return (
+    <div className="reader-side-tools" aria-label="阅读工具">
+      <div className="rail-label">字号</div>
+      <button className="rail-btn" onClick={() => updateSetting('font', Math.max(15, settings.font - 1))} title="缩小字号">A-</button>
+      <button className="rail-btn" onClick={() => updateSetting('font', Math.min(24, settings.font + 1))} title="放大字号">A+</button>
+      <div className="rail-divider" />
+      <div className="rail-label">模式</div>
+      <button className={`rail-btn ${mode === 'gentle' ? 'active' : ''}`} onClick={() => chooseMode('gentle')} title="舒缓模式">舒</button>
+      <button className={`rail-btn ${mode === 'focus' ? 'active' : ''}`} onClick={() => chooseMode('focus')} title="专注模式">专</button>
+      <button className={`rail-btn ${mode === 'clear' ? 'active' : ''}`} onClick={() => chooseMode('clear')} title="清晰模式">清</button>
+      <div className="rail-divider" />
+      <div className="rail-label">背景</div>
+      <button className={`rail-btn ${!isDark ? 'active' : ''}`} onClick={() => updateSetting('theme', 'light')} title="浅色主题">浅</button>
+      <button className={`rail-btn ${isDark ? 'active' : ''}`} onClick={() => updateSetting('theme', 'dark')} title="深色主题">深</button>
+      <div className="rail-divider" />
+      <button className={`rail-btn icon ${settings.focus ? 'active' : ''}`} onClick={() => toggleSetting('focus')} title="高亮当前段落" aria-label="高亮当前段落">
+        <Highlighter size={15} />
+      </button>
+      <button className={`rail-btn icon ${settings.ruler ? 'active' : ''}`} onClick={() => toggleSetting('ruler')} title="阅读尺" aria-label="阅读尺">
+        <Ruler size={15} />
+      </button>
+    </div>
+  )
+}
+
+function ReadingAssistCard({ progress, activeParagraph, totalParagraphs, difficultMarks, revisitCount, isCurrentDifficult, compact = false, isDark = false }) {
   const safeTotal = Math.max(totalParagraphs || 0, 1)
   const safeActive = Math.min(Math.max(activeParagraph || 0, 0), safeTotal - 1)
   const safeProgress = Math.min(100, Math.max(0, Math.round(progress || 0)))
@@ -210,7 +475,7 @@ function ReadingAssistCard({ progress, activeParagraph, totalParagraphs, difficu
 
   return (
     <>
-      <Card className={`assist-card ${compact ? 'quiet-card' : ''}`}>
+      <Card className={`assist-card ${compact ? 'quiet-card' : ''} ${isDark ? 'is-dark-card' : ''}`}>
         <div className="between">
           <div>
             <strong>阅读进度</strong>
@@ -241,7 +506,7 @@ function ReadingAssistCard({ progress, activeParagraph, totalParagraphs, difficu
       </Card>
 
       {!compact ? (
-        <Card>
+        <Card className={isDark ? 'is-dark-card' : ''}>
           <div className="between mb18">
             <strong>阅读信号</strong>
             <span className="tag">实时</span>
@@ -266,9 +531,9 @@ function ReadingAssistCard({ progress, activeParagraph, totalParagraphs, difficu
   )
 }
 
-function NotesCard({ notes, activeParagraph, compact = false, onAddHint }) {
+function NotesCard({ notes, activeParagraph, compact = false, isDark = false, onAddHint }) {
   return (
-    <Card className={compact ? 'quiet-card' : ''}>
+    <Card className={`${compact ? 'quiet-card' : ''} ${isDark ? 'is-dark-card' : ''}`}>
       <div className="between mb18">
         <strong>我的便签</strong>
         <button className="note-entry-btn" type="button" title="在正文当前段添加便签" aria-label={`在第 ${activeParagraph + 1} 段添加便签`} onClick={onAddHint}>
