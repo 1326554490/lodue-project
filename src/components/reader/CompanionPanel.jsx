@@ -1,18 +1,36 @@
 const companionLabels = {
-  off: '关闭',
+  off: '无陪伴',
   weak: '轻陪伴',
-  medium: '标准',
-  strong: '增强',
+  medium: '标准陪伴',
+  strong: '强陪伴',
 }
 
-const levelCopy = {
-  off: '仅保留进度，不显示陪伴信号',
-  weak: '低打扰流线，轻提示当前位置',
-  medium: '显示阅读节奏、当前位置和轻微信号',
-  strong: '显示难读峰值、便签点与回看环路',
+const modeTempo = {
+  gentle: {
+    status: '慢读陪伴中',
+    anchorSize: 46,
+    pulseBase: 6.8,
+  },
+  focus: {
+    status: '专注跟随中',
+    anchorSize: 40,
+    pulseBase: 4.8,
+  },
+  clear: {
+    status: '清晰定位中',
+    anchorSize: 38,
+    pulseBase: 5.6,
+  },
 }
 
-const stageLabels = ['进入', '稳定', '推进', '收束']
+const levelTempo = {
+  weak: { beadScale: 0.9, anchorAlpha: 0.48, showMeter: false, showCoach: false, ring: false },
+  medium: { beadScale: 1, anchorAlpha: 0.72, showMeter: true, showCoach: false, ring: false },
+  strong: { beadScale: 1.1, anchorAlpha: 0.9, showMeter: true, showCoach: true, ring: true },
+}
+
+const VISUAL_HEIGHT = 236
+const BEAD_COUNT = 20
 
 export default function CompanionPanel({
   progress,
@@ -21,73 +39,69 @@ export default function CompanionPanel({
   companionLevel,
   setCompanionLevel,
   isDark,
-  notes = [],
-  difficultMarks = [],
-  revisitCount = {},
+  paragraphText = '',
+  mode = 'gentle',
+  testState,
 }) {
   const safeTotal = Math.max(totalParagraphs || 0, 1)
   const safeActive = Math.min(Math.max(activeParagraph || 0, 0), safeTotal - 1)
   const safeProgress = Math.min(100, Math.max(0, Math.round(progress || 0)))
   const safeLevel = companionLabels[companionLevel] ? companionLevel : 'medium'
-  const visualHeight =
-    safeLevel === 'off' ? 118 :
-    safeLevel === 'weak' ? 184 :
-    safeLevel === 'medium' ? 236 : 268
-  const revisitTotal = Object.values(revisitCount || {}).reduce((sum, count) => sum + count, 0)
-  const stageIndex = Math.min(stageLabels.length - 1, Math.floor(safeProgress / 25))
+  const rhythm = getRhythmMeta({ activeParagraph: safeActive, paragraphText, mode, testRhythmType: testState?.rhythmType })
+  const levelConfig = levelTempo[safeLevel] || levelTempo.medium
+  const feedbackText = safeLevel === 'weak' ? '轻陪伴中' : levelConfig.showCoach ? rhythm.coachText : rhythm.rhythmLabel
+
+  if (safeLevel === 'off') {
+    return (
+      <section className={`companion-card tempo-guide-card level-off quiet-flow${isDark ? ' is-dark' : ''}`} aria-label="无陪伴阅读状态">
+        <div className="companion-inner">
+          <div className="quiet-flow-head">
+            <div>
+              <div className="pill-soft">无陪伴</div>
+              <h3>安静阅读</h3>
+            </div>
+            <strong>{safeProgress}%</strong>
+          </div>
+          <div className="quiet-progress" aria-label={`完成进度 ${safeProgress}%`}>
+            <span style={{ width: `${safeProgress}%` }} />
+          </div>
+          <div className="quiet-flow-meta">
+            <span>第 {safeActive + 1} / {safeTotal} 段</span>
+          </div>
+          <button className="quiet-enable" type="button" onClick={() => setCompanionLevel('weak')}>
+            开启轻陪伴
+          </button>
+        </div>
+      </section>
+    )
+  }
 
   return (
-    <section className={`companion-card level-${safeLevel}${isDark ? ' is-dark' : ''}`} aria-label="Lodue Flow 陪伴面板">
+    <section className={`companion-card tempo-guide-card tempo-level-${safeLevel}${isDark ? ' is-dark' : ''}`} aria-label="Lodue Tempo Guide 阅读节奏引导器">
       <div className="companion-inner">
-        <div className="comp-head">
+        <div className="tempo-head">
           <div>
-            <div className="pill-soft">Lodue Flow 常驻</div>
-            <h3>Lodue Flow</h3>
-            <p>
-              {levelCopy[safeLevel]} · {safeProgress}% · 第 {safeActive + 1} / {safeTotal} 段
-            </p>
+            <div className="pill-soft">Lodue陪伴中</div>
+            <h3>Lodue Tempo Guide｜阅读节奏引导器</h3>
+            <p>{rhythm.rhythmLabel} · 第 {safeActive + 1} / {safeTotal} 段</p>
           </div>
           <div className="flow-stage">
-            <span>{stageLabels[stageIndex]}</span>
-            <strong>{safeProgress}%</strong>
+            <span>{safeProgress}%</span>
+            <strong>{safeActive + 1}</strong>
           </div>
         </div>
 
-        <LodueFlow
+        <TempoGuideVisual
           level={safeLevel}
           progress={safeProgress}
           activeParagraph={safeActive}
           totalParagraphs={safeTotal}
-          visualHeight={visualHeight}
-          notes={notes}
-          difficultMarks={difficultMarks}
-          revisitCount={revisitCount}
+          mode={mode}
+          rhythm={rhythm}
         />
 
-        <div className="flow-signal-grid" aria-label="阅读信号摘要">
-          <div>
-            <span>当前段</span>
-            <strong>{safeActive + 1}</strong>
-          </div>
-          <div>
-            <span>回看</span>
-            <strong>{revisitTotal}</strong>
-          </div>
-          <div>
-            <span>标记</span>
-            <strong>{difficultMarks.length}</strong>
-          </div>
-        </div>
-
-        <div className="flow-legend" aria-hidden="true">
-          {safeLevel === 'off' ? (
-            <span><i className="legend-progress" />极简进度</span>
-          ) : (
-            <span><i className="legend-wave" />阅读节奏</span>
-          )}
-          {safeLevel !== 'off' ? <span><i className="legend-current" />当前段落</span> : null}
-          {safeLevel === 'strong' ? <span><i className="legend-peak" />难读峰值</span> : null}
-          {safeLevel === 'strong' ? <span><i className="legend-note" />便签点</span> : null}
+        <div className={`tempo-feedback rhythm-${rhythm.rhythmGroup} ${safeLevel === 'weak' ? 'quiet' : ''}`}>
+          {feedbackText}
         </div>
 
         <div className="assist-actions" aria-label="陪伴强度切换">
@@ -107,96 +121,114 @@ export default function CompanionPanel({
   )
 }
 
-function LodueFlow({ level, progress, activeParagraph, totalParagraphs, visualHeight, notes, difficultMarks, revisitCount }) {
+function TempoGuideVisual({ level, progress, activeParagraph, totalParagraphs, mode, rhythm }) {
   const safeTotal = Math.max(totalParagraphs || 0, 1)
-  const currentRatio = Math.min(0.96, Math.max(0.04, (activeParagraph + 1) / safeTotal))
-  const currentX = `${currentRatio * 100}%`
-  const progressWidth = `${Math.min(100, Math.max(0, progress))}%`
-  const activeLabel = `第 ${activeParagraph + 1} / ${safeTotal} 段`
-  const noteParagraphs = [...new Set((notes || []).map((note) => note.paragraphIndex))]
-  const signalIndexes = Array.from({ length: Math.min(safeTotal, 7) }, (_, index) => {
-    if (safeTotal <= 1) return 0
-    return Math.round((index / (Math.min(safeTotal, 7) - 1)) * (safeTotal - 1))
-  })
-  const xForIndex = (index) => 8 + ((Math.min(Math.max(index, 0), safeTotal - 1) + 1) / safeTotal) * 84
-  const drift = Math.round(currentRatio * 10)
-
-  if (level === 'off') {
-    return (
-      <div className="reading-field field-off" style={{ height: visualHeight }}>
-        <strong>{progress}%</strong>
-        <span>{activeLabel} · 陪伴信号已隐藏</span>
-        <div className="field-off-track">
-          <span style={{ width: progressWidth }} />
-        </div>
-      </div>
-    )
-  }
+  const modeConfig = modeTempo[mode] || modeTempo.gentle
+  const levelConfig = levelTempo[level] || levelTempo.medium
+  const activeBead = paragraphToBead(activeParagraph, safeTotal, BEAD_COUNT)
+  const progressBead = Math.min(BEAD_COUNT - 1, Math.max(0, Math.ceil((progress / 100) * BEAD_COUNT) - 1))
+  const beads = Array.from({ length: BEAD_COUNT }, (_, index) => index)
 
   return (
-    <div className={`reading-field field-${level}`} style={{ height: visualHeight }}>
-      <div className="field-grid" aria-hidden="true" />
-      <div className="field-glow glow-a" aria-hidden="true" />
-      <div className="field-glow glow-b" aria-hidden="true" />
-
-      <svg className="flow-svg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-        <path
-          className="flow-wave aura"
-          d={`M 3 ${54 - drift / 3} C 17 ${26 + drift}, 31 ${74 - drift}, 46 51 S 73 ${30 + drift / 2}, 97 ${50 - drift / 4}`}
-        />
-        <path
-          className="flow-wave primary"
-          d={`M 4 ${52 - drift / 3} C 18 ${35 + drift}, 31 ${67 - drift}, 45 51 S 72 ${36 + drift / 2}, 96 ${51 - drift / 4}`}
-        />
-        {level !== 'weak' ? (
-          <path
-            className="flow-wave secondary"
-            d={`M 4 ${38 + drift / 4} C 20 25, 35 ${55 + drift / 2}, 51 39 S 78 28, 96 ${43 + drift / 5}`}
-          />
-        ) : null}
-        {level === 'strong' ? (
-          <path
-            className="flow-wave tertiary"
-            d={`M 4 ${69 - drift / 5} C 22 80, 39 52, 58 68 S 82 ${80 - drift}, 96 60`}
-          />
-        ) : null}
-        {level === 'strong'
-          ? Object.entries(revisitCount || {}).map(([index]) => {
-              const x = xForIndex(Number(index))
-              return <path className="flow-loop" key={`loop-${index}`} d={`M ${x - 5} 30 C ${x - 12} 17, ${x + 12} 17, ${x + 5} 30`} />
-            })
-          : null}
-      </svg>
-
-      <div className="field-progress" style={{ width: progressWidth }} />
-      <div className="field-progress-line" style={{ left: currentX }} />
-      <div className={`field-cursor ${level === 'strong' ? 'strong' : ''}`} style={{ left: currentX }}>
-        <span>{activeParagraph + 1}</span>
+    <div
+      className={`tempo-guide-field tempo-guide-${level} tempo-mode-${mode} rhythm-${rhythm.rhythmGroup}`}
+      style={{
+        height: VISUAL_HEIGHT,
+        '--pulse-duration': `${rhythm.pulseDuration}s`,
+        '--anchor-size': `${modeConfig.anchorSize}px`,
+        '--anchor-alpha': levelConfig.anchorAlpha,
+        '--marker-left': `${rhythm.markerPosition}%`,
+      }}
+    >
+      <div className="tempo-bead-chain" aria-label="阅读进度珠链">
+        {beads.map((_, index) => {
+          const isRead = index <= progressBead
+          const isActive = index === activeBead
+          return (
+            <span
+              className={`tempo-bead${isRead ? ' is-read' : ''}${isActive ? ' is-current' : ''}`}
+              key={index}
+              style={{
+                width: `${isActive ? 9 * levelConfig.beadScale : isRead ? 6 * levelConfig.beadScale : 5}px`,
+                height: `${isActive ? 9 * levelConfig.beadScale : isRead ? 6 * levelConfig.beadScale : 5}px`,
+              }}
+            />
+          )
+        })}
       </div>
 
-      {signalIndexes.map((index) => (
-        <span
-          className={`field-node${index === activeParagraph ? ' active' : ''}${difficultMarks.includes(index) ? ' difficult' : ''}`}
-          key={`node-${index}`}
-          style={{ left: `${xForIndex(index)}%` }}
-        />
-      ))}
-      {level === 'strong'
-        ? (difficultMarks || []).map((index) => <span className="field-peak" key={`peak-${index}`} style={{ left: `${xForIndex(index)}%` }} />)
-        : null}
-      {level !== 'weak' ? <span className="field-warm-dot" style={{ left: `${Math.min(92, Math.max(12, xForIndex(activeParagraph) + 14))}%` }} /> : null}
-      {level === 'strong'
-        ? noteParagraphs.map((index) => <span className="field-note" key={`note-${index}`} style={{ left: `${xForIndex(index)}%` }} />)
-        : null}
-      {level === 'strong'
-        ? Object.entries(revisitCount || {}).map(([index]) => <span className="field-loop-dot" key={`loop-dot-${index}`} style={{ left: `${xForIndex(Number(index))}%` }} />)
-        : null}
+      {levelConfig.showMeter ? (
+        <div className="tempo-meter" aria-label={`当前节奏：${rhythm.rhythmLabel}`}>
+          <div className="tempo-meter-labels">
+            <span>慢</span>
+            <span>稳</span>
+            <span>快</span>
+          </div>
+          <div className="tempo-meter-track">
+            <span className="tempo-meter-segment slow" />
+            <span className="tempo-meter-segment steady" />
+            <span className="tempo-meter-segment fast" />
+            <i className="tempo-meter-marker" />
+          </div>
+        </div>
+      ) : null}
 
-      <div className="field-meta">
+      <div className="tempo-anchor" aria-hidden="true">
+        {levelConfig.ring ? <span className="tempo-anchor-ring" /> : null}
+        <span className="tempo-anchor-core" />
+      </div>
+
+      <div className="tempo-guide-meta">
         <strong>{progress}%</strong>
-        <span>{activeLabel}</span>
+        <span>第 {activeParagraph + 1} / {safeTotal} 段</span>
       </div>
-      <div className="field-caption">{levelCopy[level]}</div>
     </div>
   )
+}
+
+function getRhythmMeta({ activeParagraph, paragraphText, mode, testRhythmType }) {
+  const rhythmType = testRhythmType || getFallbackRhythmType({ activeParagraph, paragraphText })
+  const rhythmGroup = rhythmType === 'tooFast' || rhythmType === 'fast'
+    ? 'fast'
+    : rhythmType === 'verySlow' || rhythmType === 'slow'
+      ? 'slow'
+      : 'steady'
+  const modeConfig = modeTempo[mode] || modeTempo.gentle
+  const labelMap = {
+    tooFast: '读得非常快，可能还没充分理解',
+    fast: '节奏偏快',
+    steady: '节奏稳定',
+    slow: '节奏偏慢但稳定',
+    verySlow: '阅读较慢，可以使用舒缓或清晰辅助',
+  }
+  const coachMap = {
+    fast: '可以稍微放慢，给句子留一点停顿',
+    steady: '节奏稳定，继续向前',
+    slow: '慢一点也可以，保持舒适节奏',
+  }
+  const speedScale = rhythmGroup === 'fast' ? 0.82 : rhythmGroup === 'slow' ? 1.15 : 1
+
+  return {
+    rhythmType,
+    rhythmGroup,
+    rhythmLabel: labelMap[rhythmType] || modeConfig.status || '节奏稳定',
+    coachText: coachMap[rhythmGroup],
+    markerPosition: rhythmGroup === 'slow' ? 20 : rhythmGroup === 'fast' ? 82 : 50,
+    pulseDuration: Number((modeConfig.pulseBase * speedScale).toFixed(2)),
+  }
+}
+
+function getFallbackRhythmType({ activeParagraph, paragraphText }) {
+  const paragraphLength = (paragraphText || '').trim().length
+  const expectedSeconds = Math.min(40, Math.max(10, paragraphLength / 8))
+  const simulatedDwell = 14 + (activeParagraph % 5) * 5
+
+  if (simulatedDwell < expectedSeconds * 0.6) return 'fast'
+  if (simulatedDwell > expectedSeconds * 1.45) return 'slow'
+  return 'steady'
+}
+
+function paragraphToBead(paragraphIndex, total, beadCount) {
+  if (total <= 1 || beadCount <= 1) return 0
+  return Math.min(beadCount - 1, Math.max(0, Math.round((paragraphIndex / (total - 1)) * (beadCount - 1))))
 }

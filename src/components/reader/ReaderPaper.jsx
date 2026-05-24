@@ -1,4 +1,4 @@
-import { AlertCircle, Highlighter, Paperclip, PenLine, Ruler, StickyNote, Trash2, X } from 'lucide-react'
+import { AlertCircle, Highlighter, PenLine, Ruler, Trash2, X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
 export default function ReaderPaper({
@@ -17,7 +17,7 @@ export default function ReaderPaper({
   deleteNote,
   markDifficult,
 }) {
-  const paragraphs = useMemo(() => text.content.split(/\n+/).map((paragraph) => paragraph.trim()).filter(Boolean), [text.content])
+  const paragraphs = useMemo(() => text.content.split("\n").map((paragraph) => paragraph.trim()).filter(Boolean), [text.content])
   const paragraphRefs = useRef([])
   const paperRef = useRef(null)
   const hoverRef = useRef(null)
@@ -94,6 +94,11 @@ export default function ReaderPaper({
   }
 
   const openExistingNote = (note) => {
+    if (openNoteId === note.id) {
+      closeNote()
+      return
+    }
+
     setOpenNoteId(note.id)
     setOpenNoteParagraph(note.paragraphIndex)
     setNoteDraft(note.text)
@@ -184,7 +189,7 @@ export default function ReaderPaper({
               <span className="para-tools" aria-label={`第 ${index + 1} 段工具`}>
                 <button
                   type="button"
-                  className="para-tool"
+                  className="para-tool note-tool"
                   onClick={(event) => {
                     event.stopPropagation()
                     paragraphNotes.length ? openExistingNote(paragraphNotes[0]) : openNewNote(index)
@@ -192,7 +197,7 @@ export default function ReaderPaper({
                   title={paragraphNotes.length ? '查看便签' : '添加便签'}
                   aria-label={paragraphNotes.length ? `查看第 ${index + 1} 段便签` : `给第 ${index + 1} 段添加便签`}
                 >
-                  <StickyNote size={15} />
+                  <PenLine size={15} />
                 </button>
                 <button
                   type="button"
@@ -218,17 +223,14 @@ export default function ReaderPaper({
                   aria-label={`查看第 ${index + 1} 段便签`}
                   title="查看便签"
                 >
-                  <PenLine size={15} />
-                  {paragraphNotes.length > 1 ? <span>{paragraphNotes.length}</span> : null}
+                  <span className="note-fold" />
                 </button>
               ) : null}
               {isNoteOpenForParagraph ? (
-                <span className="sticky-popover" onClick={(event) => event.stopPropagation()}>
-                  <span className="sticky-corner" />
-                  <span className="sticky-pin"><Paperclip size={14} /></span>
-                  <strong>{isAddingNote ? '新便签' : `第 ${index + 1} 段`}</strong>
+                <span className="inline-note-panel" onClick={(event) => event.stopPropagation()}>
+                  <strong>{isAddingNote ? '新便签' : `第 ${index + 1} 段便签`}</strong>
                   <textarea value={noteDraft} onChange={(event) => setNoteDraft(event.target.value)} placeholder="疑问、共鸣或回看理由..." autoFocus />
-                  <span className="sticky-actions">
+                  <span className="inline-note-actions">
                     <button onClick={closeNote} title="收起" aria-label="收起便签"><X size={13} /></button>
                     {!isAddingNote ? <button onClick={handleDeleteNote} title="删除" aria-label="删除便签"><Trash2 size={13} /></button> : null}
                     <button className="primary" onClick={handleSaveNote} disabled={!noteDraft.trim()}>保存</button>
