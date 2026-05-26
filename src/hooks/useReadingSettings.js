@@ -95,5 +95,5 @@ export function useReadingSettings(initialPreset) {
     }))
   }, [manualOverrides.focus, manualOverrides.font, manualOverrides.letter, manualOverrides.line, manualOverrides.ruler])
 
-  return { settings, updateSetting, toggleSetting, applyModePreset, manualOverrides }
+  return { settings, updateSetting, toggleSetting, applyModePreset, manualOverrides, setManualOverrides }
 }

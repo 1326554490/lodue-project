@@ -14,10 +14,12 @@ export default function ReaderPaper({
   showRail = false,
   difficultMarks,
   notes,
+  noteOpenRequest,
   addNote,
   updateNote,
   deleteNote,
   markDifficult,
+  finishSlot = null,
 }) {
   const paragraphs = useMemo(() => text.content.split("\n").map((paragraph) => paragraph.trim()).filter(Boolean), [text.content])
   const paragraphRefs = useRef([])
@@ -27,6 +29,8 @@ export default function ReaderPaper({
   const scrollAnchorRef = useRef(activePara)
   const pointerInReaderRef = useRef(false)
   const [rulerY, setRulerY] = useState(132)
+  const [pointerInReader, setPointerInReader] = useState(false)
+  const [hoverParagraph, setHoverParagraph] = useState(null)
   const [openNoteId, setOpenNoteId] = useState(null)
   const [openNoteParagraph, setOpenNoteParagraph] = useState(null)
   const [noteDraft, setNoteDraft] = useState('')
@@ -38,6 +42,7 @@ export default function ReaderPaper({
   const isAddingNote = openNoteId === 'new'
   const isDark = settings.theme === 'dark' || settings.bg === 'dark'
   const paperSurface = isDark ? 'dark' : settings.surface === 'paper' ? 'cream' : settings.surface === 'plain' ? 'plain' : 'mist'
+  const visualActiveParagraph = pointerInReader && hoverParagraph !== null ? hoverParagraph : activePara
 
   useEffect(() => {
     const updateFromAnchor = () => {
@@ -87,16 +92,17 @@ export default function ReaderPaper({
   }, [])
 
   useEffect(() => {
-    const node = paragraphRefs.current[activePara]
+    const node = paragraphRefs.current[visualActiveParagraph]
     const paper = paperRef.current
     if (!node || !paper || hoverRef.current != null) return
     const nodeRect = node.getBoundingClientRect()
     const paperRect = paper.getBoundingClientRect()
     setRulerY(nodeRect.top - paperRect.top + nodeRect.height / 2)
-  }, [activePara])
+  }, [visualActiveParagraph])
 
   const handleMouseMove = (event) => {
     pointerInReaderRef.current = true
+    if (!pointerInReader) setPointerInReader(true)
     if (!paperRef.current || !settings.ruler) return
     const rect = paperRef.current.getBoundingClientRect()
     setRulerY(event.clientY - rect.top)
@@ -104,9 +110,13 @@ export default function ReaderPaper({
 
   const handleLeavePaper = () => {
     pointerInReaderRef.current = false
+    setPointerInReader(false)
+    setHoverParagraph(null)
     hoverRef.current = null
     if (hoverTimerRef.current) window.clearTimeout(hoverTimerRef.current)
-    const node = paragraphRefs.current[activePara]
+    const anchorIndex = scrollAnchorRef.current ?? activePara
+    onActiveParaChange(anchorIndex)
+    const node = paragraphRefs.current[anchorIndex]
     const paper = paperRef.current
     if (!node || !paper) return
     const nodeRect = node.getBoundingClientRect()
@@ -116,6 +126,8 @@ export default function ReaderPaper({
 
   const activateParagraphByPointer = (index) => {
     pointerInReaderRef.current = true
+    setPointerInReader(true)
+    setHoverParagraph(index)
     hoverRef.current = index
     onActiveParaChange(index)
 
@@ -145,11 +157,6 @@ export default function ReaderPaper({
   }
 
   const openExistingNote = (note) => {
-    if (openNoteId === note.id) {
-      closeNote()
-      return
-    }
-
     setOpenNoteId(note.id)
     setOpenNoteParagraph(note.paragraphIndex)
     setNoteDraft(note.text)
@@ -177,10 +184,27 @@ export default function ReaderPaper({
     closeNote()
   }
 
+  useEffect(() => {
+    if (!noteOpenRequest || noteOpenRequest.paragraphIndex == null) return
+    const paragraphIndex = noteOpenRequest.paragraphIndex
+    const existingNote = notesByParagraph[paragraphIndex]?.[0]
+
+    if (existingNote) {
+      openExistingNote(existingNote)
+      return
+    }
+
+    openNewNote(paragraphIndex)
+  }, [noteOpenRequest])
+
   return (
     <div
       className={`reader-paper paper-${paperSurface} reader-mode-${mode}`}
       ref={paperRef}
+      onMouseEnter={() => {
+        pointerInReaderRef.current = true
+        setPointerInReader(true)
+      }}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleLeavePaper}
     >
@@ -210,7 +234,7 @@ export default function ReaderPaper({
 
       <div className="reader-content">
         {paragraphs.map((paragraph, index) => {
-          const isActive = activePara === index
+          const isActive = visualActiveParagraph === index
           const isDifficult = difficultMarks.includes(index)
           const paragraphNotes = notesByParagraph[index] || []
           const isNoteOpenForParagraph = openNoteParagraph === index && (isAddingNote || openNote?.paragraphIndex === index)
@@ -226,6 +250,7 @@ export default function ReaderPaper({
               onMouseEnter={() => activateParagraphByPointer(index)}
               onMouseMove={() => {
                 if (hoverRef.current !== index) activateParagraphByPointer(index)
+                else if (hoverParagraph !== index) setHoverParagraph(index)
               }}
               onClick={() => {
                 onActiveParaChange(index)
@@ -294,6 +319,7 @@ export default function ReaderPaper({
             </p>
           )
         })}
+        {finishSlot}
       </div>
     </div>
   )

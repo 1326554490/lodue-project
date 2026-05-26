@@ -82,7 +82,7 @@ function App() {
   const [testState, setTestState] = useState({ step: 1, selfCheck: [], feedback: [], seconds: 0, baselineStarted: false })
   const [community, setCommunity] = useState(initialCommunity)
   const [sharedRecaps, setSharedRecaps] = useState(initialSharedRecaps)
-  const { settings, updateSetting, applyModePreset, toggleSetting } = useReadingSettings(modePresets.gentle)
+  const { settings, updateSetting, applyModePreset, toggleSetting, manualOverrides, setManualOverrides } = useReadingSettings(modePresets.gentle)
 
   const isDarkTheme = settings.theme === 'dark' || settings.bg === 'dark'
 
@@ -97,6 +97,8 @@ function App() {
       updateSetting,
       toggleSetting,
       applyModePreset,
+      manualOverrides,
+      setManualOverrides,
       testState,
       setTestState,
       community,
@@ -104,7 +106,7 @@ function App() {
       sharedRecaps,
       setSharedRecaps,
     }),
-    [applyModePreset, community, mode, selectedText, settings, sharedRecaps, testState, toggleSetting, updateSetting],
+    [applyModePreset, community, manualOverrides, mode, selectedText, settings, sharedRecaps, testState, toggleSetting, updateSetting],
   )
 
   const chooseMode = (key) => {

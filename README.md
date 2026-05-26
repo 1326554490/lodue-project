@@ -1,16 +1,78 @@
-# React + Vite
+# Lodue Prototype
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Lodue 是一个面向慢读、专注阅读和轻量共读的高保真产品原型。它把阅读校准、个性化阅读模式、实时阅读辅助、阅读复盘和安静共读空间串成一条完整演示路径。
 
-Currently, two official plugins are available:
+## 项目简介
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+这个原型模拟一款「阅读陪伴 + 阅读复盘 + 共读空间」产品：用户先选择或粘贴文本，完成阅读状态校准，再进入适合自己的阅读模式；阅读过程中可以使用高亮、阅读尺、便签、难读标记和 Lodue Tempo 节奏辅助；阅读结束后生成复盘，并可将复盘分享为共读空间中的阅读动态。
 
-## React Compiler
+## 目标用户
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- 阅读时容易走神、跳行或失去节奏的人；
+- 需要低压力、低干扰阅读辅助的学生和深度阅读者；
+- 希望把阅读感受、便签和复盘沉淀下来的人；
+- 想和朋友安静共读，但不想进入高频聊天场景的用户。
 
-## Expanding the ESLint configuration
+## 核心痛点
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+- 阅读状态不稳定，难以判断自己读得太快、太慢还是注意力停留；
+- 普通阅读器只提供展示文本，缺少过程反馈和复盘；
+- 阅读笔记和难点标记容易散落，结束后很难回看；
+- 社交阅读常变成聊天流，打断阅读本身。
+
+## 核心功能
+
+- 首页文本选择与自定义文本粘贴；
+- 阅读状态校准，按真实用时和字数估算阅读节奏；
+- 舒缓、专注、清晰三种阅读模式，以及字体、行距、字距、阅读尺、高亮、主题等微调；
+- 阅读页实时辅助：段落高亮、阅读尺、便签、难读标记、Lodue Tempo Guide；
+- 阅读复盘：阅读时长、进度、停留、节奏变化、标记和便签统计；
+- 共读空间：阅读动态流、好友阅读动态、推荐共读房间；
+- 共读房间：长文本共读、段落讨论、标签筛选、房间氛围主题。
+
+## 创新点
+
+- 将阅读节奏判断从静态测试延伸到真实阅读过程；
+- 用 Lodue Tempo 把「快 / 稳 / 慢 / 注意力停留」转化为克制的视觉反馈；
+- 将便签、难读标记、阅读路径和节奏历史用于阅读复盘；
+- 共读空间以个人阅读动态和段落锚点为核心，避免普通聊天页式干扰；
+- 房间氛围主题只作用于共读房间，形成更沉浸但可读的共读环境。
+
+## 技术栈
+
+- React
+- Vite
+- CSS / Tailwind utility class style
+- Lucide React icons
+- Recharts
+
+## 本地运行方式
+
+```bash
+npm install
+npm run dev
+```
+
+生产构建：
+
+```bash
+npm run build
+```
+
+Windows PowerShell 如果拦截 `npm.ps1`，可以使用：
+
+```bash
+npm.cmd run build
+```
+
+## 演示流程
+
+1. 在首页选择《红楼梦》节选或粘贴自定义文本。
+2. 进入阅读状态校准，点击开始计时并完成测试。
+3. 在模式页查看推荐模式，并手动调整阅读尺、高亮、字体、行距、主题或文本表面。
+4. 进入阅读页，体验段落高亮、阅读尺、便签、难读标记和 Lodue Tempo Guide。
+5. 阅读到正文底部，点击「完成阅读，查看复盘」。
+6. 在阅读复盘页查看本次阅读摘要、过程图、路径和建议。
+7. 点击「查看共读空间」只进入共读空间；点击「分享到共读空间」才发布我的阅读动态。
+8. 在共读空间查看阅读动态流、好友动态和推荐共读房间。
+9. 进入共读房间，体验长文本共读、段落讨论、标签筛选和房间氛围主题切换。

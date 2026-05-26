@@ -166,8 +166,8 @@ export default function FeedbackPage({ goTo, selectedText, mode, testState, sett
           <p className="muted">{myShared ? '这次阅读已经放进共读空间，你可以去查看或删除自己的分享。' : '把这次复盘分享成一张安静的共读卡，朋友可以轻轻回应或进入同一段落。'}</p>
         </div>
         <div className="flex flex-wrap gap-3">
-          <Button onClick={handleShareToCommunity}>{myShared ? '更新分享' : '分享到共读空间'}</Button>
-          <Button variant="secondary" onClick={shareAndOpen}>查看共读空间</Button>
+          <Button onClick={shareAndOpen}>{myShared ? '已分享 · 查看共读空间' : '分享到共读空间'}</Button>
+          <Button variant="secondary" onClick={() => goTo('community')}>查看共读空间</Button>
         </div>
       </Card>
 
@@ -203,7 +203,7 @@ function buildSharedRecap({ readingSession, selectedText, mode, summary, rhythmC
     quote,
     insight: buildInsight({ rhythmCounts, notesCount: readingSession.notes.length, difficultCount: readingSession.difficultMarks.length }),
     tags,
-    reactions: { resonance: 0, readTogether: 0, revisit: 0 },
+    reactions: { resonance: 0, wantRead: 0, revisit: 0 },
     confidence: dataConfidence.level,
   }
 }

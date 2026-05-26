@@ -73,7 +73,7 @@ function normalizeBaselineRhythm(type) {
   return null
 }
 
-export default function ReaderPage({ selectedText, mode, settings, updateSetting, toggleSetting, chooseMode, goTo, testState }) {
+export default function ReaderPage({ selectedText, mode, settings, updateSetting, toggleSetting, chooseMode, goTo, testState, setManualOverrides }) {
   const {
     readingSession,
     startSession,
@@ -113,7 +113,10 @@ export default function ReaderPage({ selectedText, mode, settings, updateSetting
   const [toast, setToast] = useState('')
   const [liveReading, setLiveReading] = useState(() => buildLiveReadingState(testState?.rhythmType))
   const [sidebarWidth, setSidebarWidth] = useState(340)
+  const [tempoHeight, setTempoHeight] = useState(236)
+  const [noteOpenRequest, setNoteOpenRequest] = useState(null)
   const dragStartRef = useRef(null)
+  const tempoDragStartRef = useRef(null)
   const currentParagraph = Math.min(Math.max(readingSession.currentParagraph, 0), Math.max(paragraphs.length - 1, 0))
   const [visualCurrentParagraph, setVisualCurrentParagraph] = useState(currentParagraph)
   const companionLevel = readingSession.companionLevel || 'medium'
@@ -127,6 +130,18 @@ export default function ReaderPage({ selectedText, mode, settings, updateSetting
   }
 
   const sidebarStyle = { '--reader-sidebar-width': `${sidebarWidth}px` }
+
+  useEffect(() => {
+    if (!setManualOverrides) return
+    setManualOverrides((current) => ({
+      ...current,
+      bg: true,
+      theme: true,
+      surface: true,
+      focus: true,
+      ruler: true,
+    }))
+  }, [setManualOverrides])
 
   useEffect(() => {
     startSession({
@@ -276,6 +291,16 @@ export default function ReaderPage({ selectedText, mode, settings, updateSetting
     [deleteNote],
   )
 
+  const requestNoteForParagraph = useCallback(
+    (paragraphIndex = currentParagraph) => {
+      const safeIndex = Math.min(Math.max(paragraphIndex, 0), Math.max(paragraphs.length - 1, 0))
+      setVisualCurrentParagraph(safeIndex)
+      setNoteOpenRequest({ paragraphIndex: safeIndex, requestId: Date.now() })
+      setToast('')
+    },
+    [currentParagraph, paragraphs.length],
+  )
+
   const handleConfirmedParagraphChange = useCallback(
     (paragraphIndex, source = 'scroll') => {
       if (paragraphIndex === currentParagraph) return
@@ -293,14 +318,28 @@ export default function ReaderPage({ selectedText, mode, settings, updateSetting
     }
   }, [sidebarWidth])
 
+  const startTempoHeightDrag = useCallback((event) => {
+    event.preventDefault()
+    tempoDragStartRef.current = {
+      y: event.clientY,
+      height: tempoHeight,
+    }
+  }, [tempoHeight])
+
   useEffect(() => {
     const handleMove = (event) => {
-      if (!dragStartRef.current) return
-      const delta = dragStartRef.current.x - event.clientX
-      setSidebarWidth(Math.min(420, Math.max(320, dragStartRef.current.width + delta)))
+      if (dragStartRef.current) {
+        const delta = dragStartRef.current.x - event.clientX
+        setSidebarWidth(Math.min(420, Math.max(320, dragStartRef.current.width + delta)))
+      }
+      if (tempoDragStartRef.current) {
+        const delta = event.clientY - tempoDragStartRef.current.y
+        setTempoHeight(Math.min(360, Math.max(220, tempoDragStartRef.current.height + delta)))
+      }
     }
     const handleUp = () => {
       dragStartRef.current = null
+      tempoDragStartRef.current = null
     }
 
     window.addEventListener('pointermove', handleMove)
@@ -348,7 +387,6 @@ export default function ReaderPage({ selectedText, mode, settings, updateSetting
           <Button variant="secondary" onClick={() => goTo('mode')}>
             调整模式
           </Button>
-          <Button onClick={handleFinish}>完成阅读</Button>
         </div>
       </div>
 
@@ -378,10 +416,21 @@ export default function ReaderPage({ selectedText, mode, settings, updateSetting
             toggleSetting={toggleSetting}
             difficultMarks={readingSession.difficultMarks}
             notes={readingSession.notes}
+            noteOpenRequest={noteOpenRequest}
             addNote={handleAddNote}
             updateNote={handleUpdateNote}
             deleteNote={handleDeleteNote}
             markDifficult={handleMarkDifficult}
+            finishSlot={(
+              <div className={`reader-finish-panel ${isDark ? 'is-dark' : ''}`}>
+                <div>
+                  <h2>已经读到这里了吗？</h2>
+                  <p>完成后，Lodue 会根据本次停留、标记和便签生成阅读复盘。</p>
+                  <span>当前已读 {Math.round(readingSession.progress || 0)}%</span>
+                </div>
+                <Button onClick={handleFinish}>完成阅读，查看复盘</Button>
+              </div>
+            )}
           />
         </div>
 
@@ -408,6 +457,8 @@ export default function ReaderPage({ selectedText, mode, settings, updateSetting
               mode={mode}
               testState={testState}
               liveReading={liveReading}
+              visualHeight={tempoHeight}
+              onVisualHeightPointerDown={startTempoHeightDrag}
             />
           </div>
 
@@ -427,7 +478,7 @@ export default function ReaderPage({ selectedText, mode, settings, updateSetting
               activeParagraph={currentParagraph}
               compact={isCompanionOff}
               isDark={isDark}
-              onAddHint={() => setToast('点击正文段落旁的笔形按钮添加便签')}
+              onAddHint={() => requestNoteForParagraph(currentParagraph)}
             />
             {!isCompanionOff && !isFocusMode && settings.keywords ? <KeywordsCard keywords={activeText.keywords || fallbackKeywords} /> : null}
           </div>
@@ -493,7 +544,7 @@ function ReadingAssistCard({ progress, activeParagraph, totalParagraphs, difficu
             <div className="assist-grid">
               <div className="assist-cell">
                 <span>难读标记</span>
-                <strong>{difficultyCount} 处</strong>
+                <strong>{difficultyCount} 段</strong>
               </div>
               <div className="assist-cell">
                 <span>预计剩余</span>

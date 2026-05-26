@@ -29,7 +29,7 @@ const levelTempo = {
   strong: { beadScale: 1.1, anchorAlpha: 0.9, showMeter: true, showCoach: true, ring: true },
 }
 
-const VISUAL_HEIGHT = 236
+const DEFAULT_VISUAL_HEIGHT = 236
 const BEAD_COUNT = 20
 
 export default function CompanionPanel({
@@ -43,6 +43,8 @@ export default function CompanionPanel({
   mode = 'gentle',
   testState,
   liveReading,
+  visualHeight = DEFAULT_VISUAL_HEIGHT,
+  onVisualHeightPointerDown,
 }) {
   const safeTotal = Math.max(totalParagraphs || 0, 1)
   const safeActive = Math.min(Math.max(activeParagraph || 0, 0), safeTotal - 1)
@@ -105,6 +107,8 @@ export default function CompanionPanel({
           anchorLabel={getAnchorLabel(safeLevel)}
           attentionRippleSpeed={attentionRippleSpeed}
           rippleSpeed={rippleSpeed}
+          visualHeight={visualHeight}
+          onVisualHeightPointerDown={onVisualHeightPointerDown}
         />
 
         {safeLevel !== 'weak' ? (
@@ -131,7 +135,7 @@ export default function CompanionPanel({
   )
 }
 
-function TempoGuideVisual({ level, progress, activeParagraph, totalParagraphs, mode, rhythm, anchorLabel, attentionRippleSpeed, rippleSpeed }) {
+function TempoGuideVisual({ level, progress, activeParagraph, totalParagraphs, mode, rhythm, anchorLabel, attentionRippleSpeed, rippleSpeed, visualHeight, onVisualHeightPointerDown }) {
   const safeTotal = Math.max(totalParagraphs || 0, 1)
   const modeConfig = modeTempo[mode] || modeTempo.gentle
   const levelConfig = levelTempo[level] || levelTempo.medium
@@ -143,7 +147,7 @@ function TempoGuideVisual({ level, progress, activeParagraph, totalParagraphs, m
     <div
       className={`tempo-guide-field tempo-guide-${level} tempo-mode-${mode} rhythm-${rhythm.rhythmGroup}`}
       style={{
-        height: VISUAL_HEIGHT,
+        height: visualHeight,
         '--pulse-duration': `${rhythm.pulseDuration}s`,
         '--anchor-size': `${modeConfig.anchorSize}px`,
         '--anchor-alpha': levelConfig.anchorAlpha,
@@ -207,6 +211,14 @@ function TempoGuideVisual({ level, progress, activeParagraph, totalParagraphs, m
         <strong>{progress}%</strong>
         <span>第 {activeParagraph + 1} / {safeTotal} 段</span>
       </div>
+      {onVisualHeightPointerDown ? (
+        <button
+          className="tempo-height-resizer"
+          type="button"
+          aria-label="调整 Lodue Tempo 高度"
+          onPointerDown={onVisualHeightPointerDown}
+        />
+      ) : null}
     </div>
   )
 }
