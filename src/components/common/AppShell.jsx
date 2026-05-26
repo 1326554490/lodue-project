@@ -13,8 +13,9 @@ const navItems = [
 
 export default function AppShell({ children, page, goTo, goBack, isDarkTheme, updateSetting, isDark = isDarkTheme }) {
   const currentIndex = navItems.findIndex((item) => item.key === page)
-  const iconSrc = isDark ? '/icons/lodue-dark.png' : '/icons/lodue-light.png'
-
+  const iconSrc = isDark
+    ? `${import.meta.env.BASE_URL}icons/lodue-dark.png`
+    : `${import.meta.env.BASE_URL}icons/lodue-light.png`
   return (
     <div className={isDark ? 'app-root dark-ui lodue-dark' : 'app-root'}>
       <header className="header">
